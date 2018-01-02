@@ -1,0 +1,8 @@
+{
+    "name": "kapcus/dbchanger",
+    "autoload": {
+        "psr-0" : {
+            "Kapcus\\DbChanger" : "src"
+        }
+    }
+}
