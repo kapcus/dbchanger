@@ -1,0 +1,32 @@
+parameters:
+    dbchanger:
+        groups: [central, region, home, operations]
+        environments:
+            TST:
+                name: Test
+                description: Test Environment
+                groups:
+                    central: [FSITSTL]
+                    region: [FSITSTL, FSITSTL1, FSITSTL2]
+                    operations: [FSITSTL, FSITSTL1, FSITSTL2]
+                placeholders:
+                    '/*central*/': FSITSTL
+                    '/*user*/': FSITSTDBUSR
+            DEV:
+                name: Development
+                description: Development Environment
+                groups:
+                    central: [FSIDEVL]
+                    region: [FSIDEVL, FSIDEVL1, FSIDEVL2]
+                    operations: [FSIDEVL, FSIDEVL1, FSIDEVL2]
+                placeholders:
+                    '/*central*/': FSIDEVL
+                    '/*user*/': FSIDEVDBUSR
+
+
+database:
+	dsn: 'mysql:host=127.0.0.1;dbname=test'
+	user:
+	password:
+	options:
+		lazy: yes

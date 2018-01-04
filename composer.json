@@ -1,8 +1,24 @@
 {
     "name": "kapcus/dbchanger",
-    "autoload": {
-        "psr-0" : {
-            "Kapcus\\DbChanger" : "src"
+    "version": "0.1",
+    "description": "Database change installation toolkit",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Jan Kapciar",
+            "email": "kapciar@gmail.com"
         }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Kapcus\\DbChanger\\": "src"
+        }
+    },
+    "require": {
+        "php" : ">=5.6",
+        "dibi/dibi": "~3.1",
+        "contributte/console": "^0.2.0",
+        "nette/finder": "^2.4"
     }
 }
