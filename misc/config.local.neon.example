@@ -1,27 +1,29 @@
 parameters:
     dbchanger:
+        database:
+        	driver: oracle
+        	host: localhost
+        	username: xxxx
+        	password: xxxxx
+        	database: dbname
+        inputDirectory: 'c:\workgit\dbchanger\misc\3.10.3\'
+        outputDirectory: 'c:\workgit\dbchanger\misc\output'
+        logDirectory: 'c:\workgit\dbchanger\misc\log'
         groups: [central, region, home, operations]
+        manualGroups: [operations]
         environments:
-            TST:
-                name: Test
-                description: Test Environment
+
+            XXX:
+                name: XXXXXXX
+                description: XXXXXXX Environment
                 groups:
-                    central: [FSITSTL]
-                    region: [FSITSTL, FSITSTL1, FSITSTL2]
-                    operations: [FSITSTL, FSITSTL1, FSITSTL2]
+                    central: [MAINUSER]
+                    region: [SLAVEUSER1, SLAVEUSER2]
+                    operations: [MAINUSER, SLAVEUSER1, SLAVEUSER2]
                 placeholders:
-                    '/*central*/': FSITSTL
-                    '/*user*/': FSITSTDBUSR
-            DEV:
-                name: Development
-                description: Development Environment
-                groups:
-                    central: [FSIDEVL]
-                    region: [FSIDEVL, FSIDEVL1, FSIDEVL2]
-                    operations: [FSIDEVL, FSIDEVL1, FSIDEVL2]
-                placeholders:
-                    '/*central*/': FSIDEVL
-                    '/*user*/': FSIDEVDBUSR
+                    '<central>': MAINUSER
+                    '<user>': READERUSER
+                    '<systemuser>': KAPCUS
 
 
 database:

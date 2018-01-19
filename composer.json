@@ -17,7 +17,7 @@
     },
     "require": {
         "php" : ">=5.6",
-        "dibi/dibi": "~3.1",
+        "dibi/dibi": "^3.1",
         "contributte/console": "^0.2.0",
         "nette/finder": "^2.4"
     }

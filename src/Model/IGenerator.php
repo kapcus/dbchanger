@@ -10,5 +10,13 @@ interface IGenerator
 	 *
 	 * @return bool
 	 */
-	function generateDbChange(Environment $environment, DbChange $dbChange);
+	//public function generateDbChange(Environment $environment, DbChange $dbChange);
+
+	/**
+	 * @param \Kapcus\DbChanger\Model\Environment $environment
+	 * @param \Kapcus\DbChanger\Model\Fragment $dbChangeFragment
+	 *
+	 * @return mixed
+	 */
+	public function generateFragmentContent(Environment $environment, Fragment $dbChangeFragment);
 }

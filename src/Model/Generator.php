@@ -6,9 +6,11 @@ use Kapcus\DbChanger\Model\Exception\GeneratorException;
 
 class Generator implements IGenerator
 {
-
-	private $outputDirectory = 'c:\workgit\FSI\webfe\temp';
-	private $currentUserPlaceholder = '/*region*/';
+	/**
+	 * @var string directory where all data will be generated into
+	 */
+	private $outputDirectory;
+	private $currentUserPlaceholder = '<region>';
 	private $overrideDirectories = true;
 	private $dbChangeDirectory;
 	private $dbChangeEnvironmentDirectory;
@@ -18,13 +20,18 @@ class Generator implements IGenerator
 	 */
 	private $database;
 
-	public function __construct(IDatabase $database)
+	public function __construct($outputDirectory, IDatabase $database)
 	{
 		$this->database = $database;
+		$this->outputDirectory = $outputDirectory;
 	}
 
-	public function generateDbChange(Environment $environment, DbChange $dbChange)
+	/*public function generateDbChange(Environment $environment, DbChange $dbChange)
 	{
+		if (!file_exists($this->outputDirectory) && !mkdir($this->outputDirectory)) {
+			throw new GeneratorException(sprintf('Unable to create output directory %1$s.', $this->outputDirectory));
+		}
+
 		$this->dbChangeDirectory = $this->outputDirectory.DIRECTORY_SEPARATOR.$dbChange->getCode();
 		$this->dbChangeEnvironmentDirectory = $this->dbChangeDirectory.DIRECTORY_SEPARATOR.$environment->getCode();
 
@@ -33,7 +40,7 @@ class Generator implements IGenerator
 			$this->generateDbChangeFragment($environment, $dbChangeFragment);
 		}
 
-	}
+	}*/
 
 	/**
 	 * @param \Kapcus\DbChanger\Model\Environment $environment
@@ -44,7 +51,6 @@ class Generator implements IGenerator
 	 */
 	private function prepareDirectory(Environment $environment, DbChange $dbChange)
 	{
-
 		if (!file_exists($this->dbChangeDirectory) && !mkdir($this->dbChangeDirectory)) {
 			throw new GeneratorException(sprintf('Unable to create directory %2$s for DbChange %1$s.', $dbChange->getCode(), $this->dbChangeDirectory));
 		}
@@ -78,9 +84,9 @@ class Generator implements IGenerator
 
 	/**
 	 * @param \Kapcus\DbChanger\Model\Environment $environment
-	 * @param \Kapcus\DbChanger\Model\DbChangeFragment $dbChangeFragment
+	 * @param \Kapcus\DbChanger\Model\Fragment $dbChangeFragment
 	 */
-	private function generateDbChangeFragment(Environment $environment, DbChangeFragment $dbChangeFragment)
+	/*private function generateDbChangeFragment(Environment $environment, DbChangeFragment $dbChangeFragment)
 	{
 		$filename = $this->dbChangeEnvironmentDirectory.DIRECTORY_SEPARATOR.$dbChangeFragment->getFilename();
 		$contentTemplate = $dbChangeFragment->getContent();
@@ -95,6 +101,22 @@ class Generator implements IGenerator
 		if (!empty($chunks)) {
 			file_put_contents($filename, implode("\n", $chunks));
 		}
+	}*/
+
+	public function generateFragmentContent(Environment $environment, Fragment $dbChangeFragment) {
+		$contentTemplate = $dbChangeFragment->getTemplate();
+		$contentTemplate = $this->replacePlaceholders($environment, $contentTemplate);
+		$chunks = [];
+
+		foreach($environment->getUsersInGroup($dbChangeFragment->getGroup()->getName()) as $user) {
+			$chunks[] = $this->database->getChangeUserSql($user->getName()).';';
+			$chunks[] = str_replace($this->currentUserPlaceholder, $user->getName(), $contentTemplate);
+			$chunks[] = '';
+			$dbChangeFragment->setUserContent($user, implode("\n", $chunks));
+		}
+		/*if (!empty($chunks)) {
+			$dbChangeFragment->setContent(implode("\n", $chunks));
+		}*/
 	}
 
 	private function replacePlaceholders(Environment $environment, $content) {
