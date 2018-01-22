@@ -44,7 +44,7 @@ class EnvironmentGroup
 	 *
 	 * @throws \Kapcus\DbChanger\Model\Exception\EnvironmentException
 	 */
-	public function setUsers(array $users)
+	private function setUsers(array $users)
 	{
 		foreach($users as $user) {
 			if (!$user instanceof User) {

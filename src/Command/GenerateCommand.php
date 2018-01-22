@@ -48,7 +48,8 @@ class GenerateCommand extends Command
 
 	protected function execute(InputInterface $input, OutputInterface $output)
 	{
-		$environmentCode = strtoupper($input->getArgument('env'));
+		throw new \Exception('not implemented');
+		/*$environmentCode = strtoupper($input->getArgument('env'));
 
 		if (($environment = $this->environmentDescriptor->getEnvironmentByCode($environmentCode)) === null) {
 			throw new EnvironmentException(sprintf('Unknown environment code %1$s, ensure this environment is defined in your configuration.', $environmentCode));
@@ -56,6 +57,6 @@ class GenerateCommand extends Command
 		$dbChanges = $this->loader->loadDbChanges();
 		foreach($dbChanges as $dbChange) {
 			$this->generator->generateDbChange($environment, $dbChange);
-		}
+		}*/
 	}
 }

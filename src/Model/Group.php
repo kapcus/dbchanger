@@ -12,12 +12,12 @@ class Group
 	/**
 	 * @var boolean
 	 */
-	private $isAutomatic;
+	private $isManual;
 
-	public function __construct($name, $isAutomatic = true)
+	public function __construct($name, $isManual = false)
 	{
 		$this->setName($name);
-		$this->setIsAutomatic($isAutomatic);
+		$this->setIsManual($isManual);
 	}
 
 	/**
@@ -39,17 +39,17 @@ class Group
 	/**
 	 * @return bool
 	 */
-	public function isAutomatic()
+	public function isManual()
 	{
-		return $this->isAutomatic;
+		return $this->isManual;
 	}
 
 	/**
-	 * @param bool $isAutomatic
+	 * @param bool $isManual
 	 */
-	public function setIsAutomatic($isAutomatic)
+	public function setIsManual($isManual)
 	{
-		$this->isAutomatic = $isAutomatic;
+		$this->isManual = $isManual;
 	}
 
 

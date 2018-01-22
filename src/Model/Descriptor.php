@@ -24,9 +24,9 @@ class Descriptor implements IDescriptor
 	 */
 	private $users = [];
 
-	public function __construct($groups, $environments)
+	public function __construct($groups, $manualGroups, $environments)
 	{
-		$this->configureGroups($groups);
+		$this->configureGroups($groups, $manualGroups);
 		$this->configureEnvironments($environments);
 	}
 
@@ -133,10 +133,14 @@ class Descriptor implements IDescriptor
 		return null;
 	}
 
-	private function configureGroups($groups)
+	/**
+	 * @param string[] $groupNames
+	 * @param string[] $manualGroups
+	 */
+	private function configureGroups($groupNames, $manualGroups)
 	{
-		foreach ($groups as $group) {
-			$this->addGroup(new Group($group));
+		foreach ($groupNames as $groupName) {
+			$this->addGroup(new Group($groupName, in_array($groupName, $manualGroups)));
 		}
 	}
 
@@ -146,7 +150,7 @@ class Descriptor implements IDescriptor
 	private function configureEnvironments(array $environments)
 	{
 		foreach ($environments as $envCode => $envData) {
-			$env = new Environment($envCode, $envData['name']);
+			$env = new Environment(null, $envCode, $envData['name']);
 			foreach ($envData['placeholders'] as $placeholder => $value) {
 				$env->addPlaceholder(new Placeholder($placeholder, $value));
 			}
@@ -156,7 +160,7 @@ class Descriptor implements IDescriptor
 				$group = $this->getGroupByName($groupName);
 				foreach ($userNames as $userName) {
 					if (($user = $this->getUserByName($userName)) === null) {
-						$user = new User($userName);
+						$user = new User(null, $env, $userName);
 						$this->addUsers($user);
 					}
 					$envUsers[] = $user;
