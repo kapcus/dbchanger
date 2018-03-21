@@ -21,13 +21,19 @@ services:
 	- App\Forms\SignInFormFactory
 	- App\Forms\SignUpFormFactory
 	router: App\RouterFactory::createRouter
+	- Kapcus\DbChanger\Model\DbChangeFactory
+	- Kapcus\DbChanger\Model\Manager
 	- Kapcus\DbChanger\Model\Database\Oracle
-	- Kapcus\DbChanger\Model\Loader
-	- Kapcus\DbChanger\Model\Generator
-	- Kapcus\DbChanger\Model\Descriptor(%dbchanger.groups%, %dbchanger.environments%)
+	- Kapcus\DbChanger\Model\DibiStorage(%dbchanger.database%)
+	- Kapcus\DbChanger\Model\DibiExecutor(%dbchanger.logDirectory%)
+	- Kapcus\DbChanger\Model\Loader(%dbchanger.inputDirectory%)
+	- Kapcus\DbChanger\Model\Generator(%dbchanger.outputDirectory%)
+	- Kapcus\DbChanger\Model\Descriptor(%dbchanger.groups%, %dbchanger.manualGroups%, %dbchanger.environments%)
 
-
+	- Kapcus\DbChanger\Command\InitCommand
+	- Kapcus\DbChanger\Command\InstallCommand
 	- Kapcus\DbChanger\Command\GenerateCommand
+	- Kapcus\DbChanger\Command\RegisterCommand
 
 extensions:
     console: Contributte\Console\DI\ConsoleExtension

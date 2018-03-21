@@ -2,56 +2,95 @@
 
 namespace Kapcus\DbChanger\Model;
 
+use Kapcus\DbChanger\Entity\Environment;
+use Kapcus\DbChanger\Model\Exception\DbChangeException;
 use Nette\Utils\Finder;
 
 class Loader implements ILoader
 {
 	/**
-	 * @var \Kapcus\DbChanger\Model\DbChange[]
+	 * @var \Kapcus\DbChanger\Entity\DbChange[]
 	 */
 	private $dbChanges = [];
-	private $homeDirectory = 'c:\workgit\FSI\datamodel\db-changes\data\3.10.3';
-	private $filenameMask = 'dbchange_*.sql';
 
 	/**
-	 * @var \Kapcus\DbChanger\Model\IDescriptor
+	 * @var string directory where all db changes are placed
 	 */
-	private $descriptor;
+	private $inputDirectory;
 
-	public function __construct(IDescriptor $descriptor)
+	/**
+	 * @var string
+	 */
+	private $filenameMask = 'dbchange_*.sql';
+
+	public function __construct($inputDirectory)
 	{
-		$this->descriptor = $descriptor;
+		$this->inputDirectory = $inputDirectory;
 	}
 
-	public function loadDbChanges() {
-		foreach (Finder::findDirectories("*")->from($this->homeDirectory) as $dbChangeDirectory) {
-			$this->loadDbChange($dbChangeDirectory);
+	/**
+	 * @param \Kapcus\DbChanger\Entity\Environment $environment
+	 *
+	 * @return \Kapcus\DbChanger\Entity\DbChange[]
+	 */
+	public function loadDbChangesFromInputDirectory(Environment $environment) {
+		foreach (Finder::findDirectories("*")->from($this->inputDirectory) as $dbChangeDirectory) {
+			$this->loadDbChange($environment, $dbChangeDirectory);
 		}
 		return $this->getDbChanges();
 	}
 
-	private function loadDbChange($dbChangeDirectory)
+	/**
+	 * @param \Kapcus\DbChanger\Entity\Environment $environment
+	 * @param string $dbChangeDirectory
+	 */
+	private function loadDbChange($environment, $dbChangeDirectory)
 	{
-		$dbChange = null;
+		$groups = Util::getGroupsFromUserGroups($environment->getUserGroups());
 		foreach (Finder::findFiles($this->filenameMask)->in($dbChangeDirectory->getPathname()) as $file) {
 			if (!isset($dbChange)) {
 				$dbChangeCode = str_replace(['_', '.'], '', $dbChangeDirectory->getFilename());
-				$dbChange = new DbChange($dbChangeCode);
+				$dbChange = new \Kapcus\DbChanger\Entity\DbChange();
+				$dbChange->setCode(strtoupper($dbChangeCode));
 			}
 
 			$startIndex = strrpos($file->getFilename(), '_')+1;
-			$dbChangeGroup = substr($file->getFilename(), $startIndex, strpos($file->getFilename(), '.sql')-$startIndex);
-			if (($foundGroup = $this->descriptor->getGroupByName($dbChangeGroup)) !== null) {
-				$dbChange->addFragment(new DbChangeFragment($foundGroup, $file->getPathname(), $file->getFilename()));
+			$dbChangeGroupName = substr($file->getFilename(), $startIndex, strpos($file->getFilename(), '.sql')-$startIndex);
+			if (($foundGroup = Util::getGroupByName($groups, $dbChangeGroupName)) !== null) {
+				$fragment = new \Kapcus\DbChanger\Entity\Fragment();
+				$fragment->setGroup($foundGroup);
+				$fragment->setDbChange($dbChange);
+				$fragment->setFilename($file->getFilename());
+				$fragment->setPathname($file->getPathname());
+				$dbChange->addFragment($fragment);
 			}
 		}
-		if ($dbChange instanceof DbChange && $dbChange->hasFragment()) {
+		if ($dbChange instanceof \Kapcus\DbChanger\Entity\DbChange && $dbChange->hasFragment()) {
 			$this->addDbChange($dbChange);
 		}
 	}
 
+	/*public function loadExistingDbChange(DbChange $dbChange, array $groups) {
+		$dbChangeDirectory = $this->inputDirectory . DIRECTORY_SEPARATOR . $dbChange->getCode();
+
+		if (!is_dir($dbChangeDirectory)) {
+			throw new DbChangeException(sprintf('DbChange %s can\'t be loaded as %s directory not found.', $dbChange->getCode(), $dbChangeDirectory));
+		}
+		foreach (Finder::findFiles($this->filenameMask)->in($dbChangeDirectory) as $file) {
+			$startIndex = strrpos($file->getFilename(), '_')+1;
+			$dbChangeGroupName = substr($file->getFilename(), $startIndex, strpos($file->getFilename(), '.sql')-$startIndex);
+			if (($foundGroup = Util::getGroupByName($groups, $dbChangeGroupName)) !== null) {
+				$fragment = new Fragment(null, $dbChange, $foundGroup);
+				$fragment->setFilePath($file->getPathname());
+				$fragment->setFilename($file->getFilename());
+				$dbChange->addFragment($fragment);
+			}
+		}
+		return $dbChange;
+	}*/
+
 	/**
-	 * @return \Kapcus\DbChanger\Model\DbChange[]
+	 * @return \Kapcus\DbChanger\Entity\DbChange[]
 	 */
 	public function getDbChanges()
 	{
@@ -59,9 +98,9 @@ class Loader implements ILoader
 	}
 
 	/**
-	 * @param \Kapcus\DbChanger\Model\DbChange $dbChange
+	 * @param \Kapcus\DbChanger\Entity\DbChange $dbChange
 	 */
-	public function addDbChange(DbChange $dbChange)
+	public function addDbChange(\Kapcus\DbChanger\Entity\DbChange $dbChange)
 	{
 		$this->dbChanges[] = $dbChange;
 	}

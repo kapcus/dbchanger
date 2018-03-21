@@ -3,9 +3,10 @@
 namespace Kapcus\DbChanger\Command;
 
 use Kapcus\DbChanger\Model\Exception\EnvironmentException;
-use Kapcus\DbChanger\Model\IDescriptor;
+use Kapcus\DbChanger\Model\IConfigurator;
 use Kapcus\DbChanger\Model\IGenerator;
 use Kapcus\DbChanger\Model\ILoader;
+use Kapcus\DbChanger\Model\Manager;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -25,14 +26,21 @@ class GenerateCommand extends Command
 	public $generator;
 
 	/**
-	 * @var \Kapcus\DbChanger\Model\IDescriptor
+	 * @var \Kapcus\DbChanger\Model\Manager
+	 */
+	public $manager;
+
+
+	/**
+	 * @var \Kapcus\DbChanger\Model\IConfigurator
 	 */
 	public $environmentDescriptor;
 
-	public function __construct(ILoader $loader, IGenerator $generator, IDescriptor $environmentDescriptor) {
+	public function __construct(ILoader $loader, IGenerator $generator, IConfigurator $configurator, Manager $manager) {
 		$this->loader = $loader;
 		$this->generator = $generator;
-		$this->environmentDescriptor = $environmentDescriptor;
+		$this->environmentDescriptor = $configurator;
+		$this->manager = $manager;
 		parent::__construct();
 	}
 
@@ -48,12 +56,18 @@ class GenerateCommand extends Command
 
 	protected function execute(InputInterface $input, OutputInterface $output)
 	{
+		//throw new \Exception('not implemented');
 		$environmentCode = strtoupper($input->getArgument('env'));
 
-		if (($environment = $this->environmentDescriptor->getEnvironmentByCode($environmentCode)) === null) {
+		/*if (($environment = $this->environmentDescriptor->getEnvironmentByCode($environmentCode)) === null) {
 			throw new EnvironmentException(sprintf('Unknown environment code %1$s, ensure this environment is defined in your configuration.', $environmentCode));
+		}*/
+
+		$environment = $this->manager->getEnvironmentByCode($environmentCode);
+		if ($environment == null) {
+			throw new EnvironmentException(sprintf('Unknown environment code %1$s, ensure this environment is defined in your configuration and properly initialized.', $environmentCode));
 		}
-		$dbChanges = $this->loader->loadDbChanges();
+		$dbChanges = $this->loader->loadDbChangesFromInputDirectory($environment);
 		foreach($dbChanges as $dbChange) {
 			$this->generator->generateDbChange($environment, $dbChange);
 		}
