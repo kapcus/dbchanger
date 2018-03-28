@@ -1,12 +1,14 @@
 DbChanger
 =================
-Deploy and install your database changes (dbchange) from centrally.
-Multiple environments, with multiple schemas & users supported.
-Each dbchange can have multiple sql files with arbitrary placeholders.
+Toolkit for advanced database change management.
 
-Modular architecture allows you to override/extend existing logic.
+* Deploy and install centrally
+* Multiple environments with multiple schemas & users
+* Each dbchange can have multiple sql files with arbitrary placeholders
+* Simple environment configuration
 
-Currently supported databases: `ORACLE` 
+Currently supported databases: 
+* `ORACLE` 
 
 Architecture
 =================
