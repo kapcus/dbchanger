@@ -23,7 +23,7 @@ class ReinitCommand extends Command
 	{
 		$this
 			->setName('dbchanger:reinit')
-			->setDescription('Reinitialize environments defined in config file');
+			->setDescription('Reinitialize environments defined in config file.');
 	}
 
 	protected function execute(InputInterface $input, OutputInterface $output)

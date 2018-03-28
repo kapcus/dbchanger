@@ -42,6 +42,13 @@ class UserGroup
 	protected $environment;
 
 	/**
+	 * @ORM\OneToMany(targetEntity="InstalledFragment", mappedBy="userGroup")
+	 *
+	 * @var \Kapcus\DbChanger\Entity\InstalledFragment[]
+	 */
+	protected $installedFragments;
+
+	/**
 	 * @return int
 	 */
 	public function getId()
@@ -50,7 +57,7 @@ class UserGroup
 	}
 
 	/**
-	 * @return mixed
+	 * @return \Kapcus\DbChanger\Entity\User
 	 */
 	public function getUser()
 	{
@@ -58,7 +65,7 @@ class UserGroup
 	}
 
 	/**
-	 * @param mixed $user
+	 * @param \Kapcus\DbChanger\Entity\User $user
 	 */
 	public function setUser($user)
 	{

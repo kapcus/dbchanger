@@ -21,39 +21,72 @@ class Loader implements ILoader
 	/**
 	 * @var string
 	 */
-	private $filenameMask = 'dbchange_*.sql';
+	private $filenameMask = '*.sql';
 
-	public function __construct($inputDirectory)
+	/**
+	 * @var string
+	 */
+	private $filePrefix;
+
+
+	public function __construct($inputDirectory, $filePrefix = '')
 	{
 		$this->inputDirectory = $inputDirectory;
+		$this->filePrefix = $filePrefix;
 	}
 
 	/**
-	 * @param \Kapcus\DbChanger\Entity\Environment $environment
+	 * @param \Kapcus\DbChanger\Entity\Group[] $groups
 	 *
 	 * @return \Kapcus\DbChanger\Entity\DbChange[]
 	 */
-	public function loadDbChangesFromInputDirectory(Environment $environment) {
+	public function loadDbChangesFromInputDirectory(array $groups) {
 		foreach (Finder::findDirectories("*")->from($this->inputDirectory) as $dbChangeDirectory) {
-			$this->loadDbChange($environment, $dbChangeDirectory);
+			$dbChange = $this->loadDbChange($groups, $dbChangeDirectory);
+			if ($dbChange !== null) {
+				$this->addDbChange($dbChange);
+			}
 		}
 		return $this->getDbChanges();
 	}
 
 	/**
-	 * @param \Kapcus\DbChanger\Entity\Environment $environment
-	 * @param string $dbChangeDirectory
+	 * @param \Kapcus\DbChanger\Entity\Group[] $groups
+	 * @param string $dbChangeCode
+	 *
+	 * @return \Kapcus\DbChanger\Entity\DbChange
+	 * @throws \Kapcus\DbChanger\Model\Exception\DbChangeException
 	 */
-	private function loadDbChange($environment, $dbChangeDirectory)
+	public function loadDbChangeFromInputDirectory(array $groups, $dbChangeCode) {
+		foreach (Finder::findDirectories("*")->from($this->inputDirectory) as $dbChangeDirectory) {
+			if (strtoupper($dbChangeDirectory->getFilename()) == $dbChangeCode) {
+				$dbChange =  $this->loadDbChange($groups, $dbChangeDirectory);
+				if ($dbChange == null) {
+					throw new DbChangeException(sprintf('DbChange %s is empty and therefore can not be initialized.', $dbChangeCode));
+				}
+				return $dbChange;
+			}
+		}
+		throw new DbChangeException(sprintf('Input directory for DbChange %s not found.', $dbChangeCode));
+	}
+
+	/**
+	 * @param \Kapcus\DbChanger\Entity\Group[] $groups
+	 * @param string $dbChangeDirectory
+	 *
+	 * @return \Kapcus\DbChanger\Entity\DbChange|null
+	 */
+	private function loadDbChange(array $groups, $dbChangeDirectory)
 	{
-		$groups = Util::getGroupsFromUserGroups($environment->getUserGroups());
-		foreach (Finder::findFiles($this->filenameMask)->in($dbChangeDirectory->getPathname()) as $file) {
+		$dbChange = null;
+		foreach (Finder::findFiles(sprintf('%s%s', $this->filePrefix, $this->filenameMask))->in($dbChangeDirectory->getPathname()) as $file) {
 			if (!isset($dbChange)) {
 				$dbChangeCode = str_replace(['_', '.'], '', $dbChangeDirectory->getFilename());
 				$dbChange = new \Kapcus\DbChanger\Entity\DbChange();
 				$dbChange->setCode(strtoupper($dbChangeCode));
 			}
-
+			$filePart = substr($file->getFilename(), strlen($this->filePrefix));
+			$fragmentIndex = intval(substr($filePart, 0, strpos($filePart, '_')));
 			$startIndex = strrpos($file->getFilename(), '_')+1;
 			$dbChangeGroupName = substr($file->getFilename(), $startIndex, strpos($file->getFilename(), '.sql')-$startIndex);
 			if (($foundGroup = Util::getGroupByName($groups, $dbChangeGroupName)) !== null) {
@@ -62,32 +95,15 @@ class Loader implements ILoader
 				$fragment->setDbChange($dbChange);
 				$fragment->setFilename($file->getFilename());
 				$fragment->setPathname($file->getPathname());
+				$fragment->setIndex($fragmentIndex);
 				$dbChange->addFragment($fragment);
 			}
 		}
 		if ($dbChange instanceof \Kapcus\DbChanger\Entity\DbChange && $dbChange->hasFragment()) {
-			$this->addDbChange($dbChange);
+			return $dbChange;
 		}
+		return null;
 	}
-
-	/*public function loadExistingDbChange(DbChange $dbChange, array $groups) {
-		$dbChangeDirectory = $this->inputDirectory . DIRECTORY_SEPARATOR . $dbChange->getCode();
-
-		if (!is_dir($dbChangeDirectory)) {
-			throw new DbChangeException(sprintf('DbChange %s can\'t be loaded as %s directory not found.', $dbChange->getCode(), $dbChangeDirectory));
-		}
-		foreach (Finder::findFiles($this->filenameMask)->in($dbChangeDirectory) as $file) {
-			$startIndex = strrpos($file->getFilename(), '_')+1;
-			$dbChangeGroupName = substr($file->getFilename(), $startIndex, strpos($file->getFilename(), '.sql')-$startIndex);
-			if (($foundGroup = Util::getGroupByName($groups, $dbChangeGroupName)) !== null) {
-				$fragment = new Fragment(null, $dbChange, $foundGroup);
-				$fragment->setFilePath($file->getPathname());
-				$fragment->setFilename($file->getFilename());
-				$dbChange->addFragment($fragment);
-			}
-		}
-		return $dbChange;
-	}*/
 
 	/**
 	 * @return \Kapcus\DbChanger\Entity\DbChange[]

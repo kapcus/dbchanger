@@ -34,12 +34,12 @@ class GenerateCommand extends Command
 	/**
 	 * @var \Kapcus\DbChanger\Model\IConfigurator
 	 */
-	public $environmentDescriptor;
+	public $configurator;
 
 	public function __construct(ILoader $loader, IGenerator $generator, IConfigurator $configurator, Manager $manager) {
 		$this->loader = $loader;
 		$this->generator = $generator;
-		$this->environmentDescriptor = $configurator;
+		$this->configurator = $configurator;
 		$this->manager = $manager;
 		parent::__construct();
 	}
@@ -48,28 +48,45 @@ class GenerateCommand extends Command
 	{
 		$this
 			->setName('dbchanger:generate')
-			->setDescription('Generate DbChange sql content from templates defined in given folder')
-			->addArgument('env', InputArgument::REQUIRED, 'Target environment code');
-			/*->addOption('backwards', 'b', null, 'Pozpátku?')
-			->addOption('greeting', null, InputOption::VALUE_REQUIRED, 'Pozdrav', 'Hello');*/
+			->setDescription('Generate DbChange sql content from templates defined in given folder.')
+			->addArgument('env', InputArgument::REQUIRED, 'Target environment code')
+			->addArgument('dbchange', InputArgument::OPTIONAL, 'DbChange code of the dbChange to be generated')
+			->addArgument('fragmentIndex', InputArgument::OPTIONAL, 'Fragment index of the fragment to be generated');
 	}
 
 	protected function execute(InputInterface $input, OutputInterface $output)
 	{
-		//throw new \Exception('not implemented');
 		$environmentCode = strtoupper($input->getArgument('env'));
+		$dbchangeCode = strtoupper($input->getArgument('dbchange'));
+		$fragmentIndex = intval($input->getArgument('fragmentIndex'));
 
-		/*if (($environment = $this->environmentDescriptor->getEnvironmentByCode($environmentCode)) === null) {
-			throw new EnvironmentException(sprintf('Unknown environment code %1$s, ensure this environment is defined in your configuration.', $environmentCode));
-		}*/
+		$outputDirectory = '';
+		try {
+			$environment = $this->manager->getEnvironmentByCode($environmentCode);
 
-		$environment = $this->manager->getEnvironmentByCode($environmentCode);
-		if ($environment == null) {
-			throw new EnvironmentException(sprintf('Unknown environment code %1$s, ensure this environment is defined in your configuration and properly initialized.', $environmentCode));
-		}
-		$dbChanges = $this->loader->loadDbChangesFromInputDirectory($environment);
-		foreach($dbChanges as $dbChange) {
-			$this->generator->generateDbChange($environment, $dbChange);
+			$dbChanges = $this->loader->loadDbChangesFromInputDirectory($this->manager->getGroups());
+			if (isset($dbchangeCode)) {
+				foreach($dbChanges as $dbChange) {
+					if ($dbChange->getCode() == $dbchangeCode) {
+						if (isset($fragmentIndex)) {
+							foreach($dbChange->getFragments() as $fragment) {
+								if ($fragment->getIndex() == $fragmentIndex) {
+									$outputDirectory = $this->generator->generateFragment($environment, $fragment);
+									break;
+								}
+							}
+						} else {
+							$outputDirectory = $this->generator->generateDbChange($environment, $dbChange);
+						}
+						break;
+					}
+				}
+			} else {
+				$outputDirectory = $this->generator->generateDbChanges($environment, $dbChanges);
+			}
+			$output->writeln(sprintf(' Requested content successfully generated into output subdirectory %s.', $outputDirectory));
+		} catch (EnvironmentException $e) {
+			$output->writeln($e->getMessage().' Consider running "reinit" command.');
 		}
 	}
 }

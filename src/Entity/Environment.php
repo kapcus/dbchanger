@@ -48,23 +48,58 @@ class Environment
 	protected $description;
 
 	/**
-	 * @var \Kapcus\DbChanger\Model\Placeholder[]
+	 * @ORM\OneToMany(targetEntity="Placeholder", mappedBy="environment", cascade={"persist", "remove"})
+	 *
+	 * @var \Kapcus\DbChanger\Entity\Placeholder[]
 	 */
 	private $placeholders = [];
+
+	/**
+	 * @ORM\OneToMany(targetEntity="User", mappedBy="environment", cascade={"persist", "remove"})
+	 *
+	 * @var \Kapcus\DbChanger\Entity\User[]
+	 */
+	private $users = [];
+
+	/**
+	 * @ORM\OneToMany(targetEntity="Installation", mappedBy="environment", cascade={"persist", "remove"})
+	 *
+	 * @var \Kapcus\DbChanger\Entity\Installation[]
+	 */
+	private $installations = [];
 
 	/**
 	 * @ORM\OneToMany(targetEntity="UserGroup", mappedBy="environment", cascade={"persist", "remove"})
 	 *
 	 * @var \Kapcus\DbChanger\Entity\UserGroup[]
 	 */
-	protected $userGroups;
+	protected $userGroups = [];
 
 	/**
-	 * Group constructor.
+	 * @var string
+	 */
+	private $host;
+
+	/**
+	 * @var int
+	 */
+	private $port;
+
+	/**
+	 * @var string
+	 */
+	private $databaseName;
+
+	/**
+	 * Environment constructor.
 	 */
 	public function __construct()
 	{
 		$this->userGroups = new ArrayCollection();
+		$this->userGroups = new ArrayCollection();
+		$this->installations = new ArrayCollection();
+		$this->placeholders = new ArrayCollection();
+		$this->users = new ArrayCollection();
 	}
 
 	/**
@@ -108,7 +143,7 @@ class Environment
 	}
 
 	/**
-	 * @return \Kapcus\DbChanger\Model\Placeholder[]
+	 * @return \Kapcus\DbChanger\Entity\Placeholder[]
 	 */
 	public function getPlaceholders()
 	{
@@ -116,9 +151,9 @@ class Environment
 	}
 
 	/**
-	 * @param \Kapcus\DbChanger\Model\Placeholder $placeholder
+	 * @param \Kapcus\DbChanger\Entity\Placeholder $placeholder
 	 */
-	public function addPlaceholder(Placeholder $placeholder)
+	public function addPlaceholder(\Kapcus\DbChanger\Entity\Placeholder $placeholder)
 	{
 		$this->placeholders[] = $placeholder;
 	}
@@ -126,7 +161,7 @@ class Environment
 	public function getPlaceholderCodes()
 	{
 		return array_map(
-			function (Placeholder $o) {
+			function (\Kapcus\DbChanger\Entity\Placeholder $o) {
 				return $o->getCode();
 			},
 			$this->getPlaceholders()
@@ -136,8 +171,8 @@ class Environment
 	public function getPlaceholderValues()
 	{
 		return array_map(
-			function (Placeholder $o) {
-				return $o->getValue();
+			function (\Kapcus\DbChanger\Entity\Placeholder $o) {
+				return $o->getTranslatedValue();
 			},
 			$this->getPlaceholders()
 		);
@@ -188,6 +223,126 @@ class Environment
 			}
 		}
 		return null;
+	}
+
+	/**
+	 * @return string[]
+	 */
+	public function getGroupNames() {
+		$groupNames = [];
+		foreach($this->getUserGroups() as $userGroup) {
+			$groupNames[] = $userGroup->getGroup()->getName();
+		}
+		return array_unique($groupNames);
+	}
+
+	/**
+	 * @param \Kapcus\DbChanger\Entity\Group $group
+	 *
+	 * @return \Kapcus\DbChanger\Entity\UserGroup[]
+	 */
+	public function getUserGroupsByGroup(Group $group) {
+		$groups = [];
+		foreach($this->getUserGroups() as $userGroup) {
+			if ($userGroup->getGroup()->getName() == $group->getName()) {
+				$groups[] = $userGroup;
+			}
+		}
+		return $groups;
+	}
+
+	/**
+	 * @return \Kapcus\DbChanger\Entity\Installation[]
+	 */
+	public function getInstallations()
+	{
+		return $this->installations;
+	}
+
+	/**
+	 * @param \Kapcus\DbChanger\Entity\Installation $installation
+	 */
+	public function addInstallation(Installation $installation)
+	{
+		$this->installations[] = $installation;
+	}
+
+	/**
+	 * @return \Kapcus\DbChanger\Entity\User[]
+	 */
+	public function getUsers()
+	{
+		return $this->users;
+	}
+
+	/**
+	 * @param \Kapcus\DbChanger\Entity\User $user
+	 */
+	public function addUser(User $user)
+	{
+		$this->users[] = $user;
+	}
+
+	/**
+	 * @param string $userName
+	 *
+	 * @return \Kapcus\DbChanger\Entity\User
+	 */
+	public function getUserByName($userName) {
+		foreach($this->getUsers() as $user) {
+			if ($user->getName() == $userName) {
+				return $user;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * @return string
+	 */
+	public function getHost()
+	{
+		return $this->host;
+	}
+
+	/**
+	 * @param string $host
+	 */
+	public function setHost($host)
+	{
+		$this->host = $host;
+	}
+
+	/**
+	 * @return int
+	 */
+	public function getPort()
+	{
+		return $this->port;
+	}
+
+	/**
+	 * @param int $port
+	 */
+	public function setPort($port)
+	{
+		$this->port = $port;
+	}
+
+	/**
+	 * @return string
+	 */
+	public function getDatabaseName()
+	{
+		return $this->databaseName;
+	}
+
+	/**
+	 * @param string $databaseName
+	 */
+	public function setDatabaseName($databaseName)
+	{
+		$this->databaseName = $databaseName;
 	}
 
 

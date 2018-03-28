@@ -10,6 +10,7 @@ use Kapcus\DbChanger\Model\IExecutor;
 use Kapcus\DbChanger\Model\ILoader;
 use Kapcus\DbChanger\Model\DibiStorage;
 use Kapcus\DbChanger\Model\Manager;
+use Nette\NotImplementedException;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -31,12 +32,12 @@ class StatusCommand extends Command
 	/**
 	 * @var \Kapcus\DbChanger\Model\IConfigurator
 	 */
-	public $environmentDescriptor;
+	public $configurator;
 
 	public function __construct(ILoader $loader, Manager $manager, IConfigurator $configurator) {
 		$this->loader = $loader;
 		$this->manager = $manager;
-		$this->environmentDescriptor = $configurator;
+		$this->configurator = $configurator;
 		parent::__construct();
 	}
 
@@ -51,21 +52,6 @@ class StatusCommand extends Command
 
 	protected function execute(InputInterface $input, OutputInterface $output)
 	{
-		$environmentCode = strtoupper($input->getArgument('env'));
-
-		if (($environment = $this->environmentDescriptor->getEnvironmentByCode($environmentCode)) === null) {
-			throw new EnvironmentException(sprintf('Unknown environment code %1$s, ensure this environment is defined in your configuration.', $environmentCode));
-		}
-
-		$dbChangeCode = strtoupper($input->getArgument('code'));
-
-		try {
-			$installationResults = $this->manager->checkDbChange($environment, $dbChangeCode);
-			$output->writeln(sprintf('DbChange %s .', $dbChangeCode, $environment->getCode()));
-		} catch (DbChangeException $e) {
-			$output->writeln($e->getMessage());
-		} catch (EnvironmentException $e) {
-			$output->writeln($e->getMessage());
-		}
+		throw new NotImplementedException();
 	}
 }

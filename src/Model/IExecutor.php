@@ -5,32 +5,17 @@ namespace Kapcus\DbChanger\Model;
 interface IExecutor
 {
 	/**
-	 * @param string $filenamePath
+	 * @param \Kapcus\DbChanger\Model\ConnectionConfiguration $connectionConfiguration
 	 *
-	 * @return int number of executed queries
-	 * @throw ExecutorException
+	 * @throws \Kapcus\DbChanger\Model\Exception\ConnectionException
 	 */
-	public function loadFile($filenamePath);
+	public function setupConnection(ConnectionConfiguration $connectionConfiguration);
 
 	/**
 	 * @param string $sqlContent
 	 *
-	 * @return int number of executed queries
-	 * @throw ExecutorException
+	 * @throws \Kapcus\DbChanger\Model\Exception\ExecutionException
 	 */
-	public function loadContent($sqlContent);
+	public function executeContent($sqlContent);
 
-	/**
-	 * @param string $sqlQuery
-	 *
-	 * @return boolean
-	 * @throw ExecutorException
-	 */
-	public function loadQuery($sqlQuery);
-
-	public function begin();
-
-	public function commit();
-
-	public function rollback();
 }

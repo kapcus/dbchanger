@@ -5,8 +5,6 @@ namespace Kapcus\DbChanger\Entity;
 use Doctrine\ORM\Mapping AS ORM;
 use Doctrine\Common\Collections\ArrayCollection;
 
-use Kapcus\DbChanger\Model\Placeholder;
-
 /**
  * @ORM\Entity
  * @ORM\Table(name="DBCH_FRAGMENT")
@@ -25,7 +23,15 @@ class Fragment
 
 	/**
 	 *
-	 * @ORM\Column(type="clob")
+	 * @ORM\Column(type="integer", name="index_number")
+	 *
+	 * @var string
+	 */
+	protected $index;
+
+	/**
+	 *
+	 * @ORM\Column(type="text")
 	 *
 	 * @var string
 	 */
@@ -44,6 +50,13 @@ class Fragment
 	 * @var \Kapcus\DbChanger\Entity\Group
 	 **/
 	protected $group;
+
+	/**
+	 * @ORM\OneToMany(targetEntity="InstalledFragment", mappedBy="fragment")
+	 *
+	 * @var \Kapcus\DbChanger\Entity\InstalledFragment[]
+	 */
+	protected $installedFragments;
 
 	/**
 	 * @var string
@@ -150,6 +163,30 @@ class Fragment
 	public function getTemplateContentFromFile()
 	{
 		return file_get_contents($this->getPathname());
+	}
+
+	/**
+	 *
+	 */
+	public function loadTemplateContentFromFile()
+	{
+		$this->setTemplateContent(file_get_contents($this->getPathname()));
+	}
+
+	/**
+	 * @return string
+	 */
+	public function getIndex()
+	{
+		return $this->index;
+	}
+
+	/**
+	 * @param string $index
+	 */
+	public function setIndex($index)
+	{
+		$this->index = $index;
 	}
 
 

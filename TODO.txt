@@ -1,0 +1,6 @@
+- add check placeholder must be different from group names
+- generate by full code
+- required db change
+- global views support
+- create views for easier management
+- allow hooks for target schema table operations

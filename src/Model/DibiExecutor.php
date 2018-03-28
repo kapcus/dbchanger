@@ -2,21 +2,17 @@
 
 namespace Kapcus\DbChanger\Model;
 
-use Kapcus\DbChanger\Model\Exception\ExecutorException;
-use Kapcus\DbChanger\Model\Exception\StorageException;
+use Dibi\Connection;
+use Dibi\Exception;
+use Kapcus\DbChanger\Model\Exception\ConnectionException;
+use Kapcus\DbChanger\Model\Exception\ExecutionException;
 
 class DibiExecutor implements IExecutor
 {
-
 	/**
-	 * @var \Kapcus\DbChanger\Model\IConfigurator
+	 * @var \Kapcus\DbChanger\Model\IDatabase
 	 */
-	private $descriptor;
-
-	/**
-	 * @var \Kapcus\DbChanger\Model\DibiStorage
-	 */
-	private $storage;
+	private $database;
 
 	/**
 	 * @var bool
@@ -24,15 +20,25 @@ class DibiExecutor implements IExecutor
 	private $isDebug = true;
 
 	/**
+	 * @var \Dibi\Connection
+	 */
+	private $connection;
+
+	/**
+	 * @var \Kapcus\DbChanger\Model\IParser
+	 */
+	private $parser;
+
+	/**
 	 * @var string
 	 */
 	private $logDirectory;
 
-	public function __construct($logDirectory, IConfigurator $descriptor, DibiStorage $storage)
+	public function __construct($logDirectory, IDatabase $database, IParser $parser)
 	{
-		$this->descriptor = $descriptor;
-		$this->storage = $storage;
+		$this->database = $database;
 		$this->logDirectory = $logDirectory;
+		$this->parser = $parser;
 
 		if ($this->isDebug) {
 			if (!is_dir($this->logDirectory)) {
@@ -41,87 +47,82 @@ class DibiExecutor implements IExecutor
 		}
 	}
 
-	public function installDbChange(Environment $environment, $dbChangeCode) {
-
-		//$this->storage->commitInstalledDbChange($storedEnvironment, $registeredDbChange);
-	}
-
-
 	/**
-	 * @param string $filenamePath
+	 * @param \Kapcus\DbChanger\Model\ConnectionConfiguration $connectionConfiguration
 	 *
-	 * @return int number of executed queries
-	 * @throw ExecutorException
+	 * @throws \Kapcus\DbChanger\Model\Exception\ConnectionException
 	 */
-	public function loadFile($filenamePath)
+	public function setupConnection(ConnectionConfiguration $connectionConfiguration)
 	{
-		var_dump($filenamePath);
+		$this->writeLog(sprintf('---------------'));
+		$this->writeLog(date('d.m.Y H:i:s'));
+		$this->writeLog(sprintf('---------------'));
+		try {
+			$this->setConnection(new Connection($this->database->getConnectionOptions($connectionConfiguration)));
+		} catch (Exception $e) {
+			$this->writeLog(sprintf('Unable to connect.'));
+			throw new ConnectionException('Unable to connect.', 0, $e);
+		}
+		$this->writeLog(sprintf('Connected as user %1$s (host %2$s).', $connectionConfiguration->getUsername(), $connectionConfiguration->getHostname()));
 	}
 
 	/**
 	 * @param string $sqlContent
 	 *
-	 * @return int number of executed queries
-	 * @throw ExecutorException
+	 * @throws \Kapcus\DbChanger\Model\Exception\ExecutionException
 	 */
-	public function loadContent($sqlContent)
+	public function executeContent($sqlContent)
 	{
-		$lines = preg_split ('/$\R?^/m', $sqlContent);
-		$sqlQuery = '';
-		foreach($lines as $line) {
-			if (strpos(ltrim($line),'--') === 0 || strpos(ltrim($line),'//') === 0) {
-				continue;
-			}
-			$sqlQuery .= $line;
-			if (substr(rtrim($sqlQuery), -1) === ';') {
-				$this->runQuery(rtrim(rtrim($sqlQuery), ';'));
-				$sqlQuery = '';
-			}
+		$statements = $this->parser->getStatements($sqlContent);
+		foreach($statements as $statement) {
+			$this->runQuery($statement);
 		}
-		// missing delimiter at the end of the script file
-		if (trim($sqlQuery) !== '') {
-			$this->runQuery($sqlQuery);
-		}
-	}
-
-	private function runQuery($sqlQuery) {
-		try {
-			$start = microtime(true);
-			$this->storage->query($sqlQuery);
-			$duration = microtime(true) - $start;
-			if ($this->isDebug) {
-				file_put_contents($this->logDirectory . DIRECTORY_SEPARATOR . 'executor.log', sprintf('OK (%s) : %s', $duration, $sqlQuery).PHP_EOL, FILE_APPEND);
-			}
-		} catch (StorageException $e) {
-			file_put_contents($this->logDirectory . DIRECTORY_SEPARATOR . 'executor.log', sprintf('FAILED : %s', $sqlQuery).PHP_EOL, FILE_APPEND);
-			throw new ExecutorException(sprintf('Unable to execute following query: %s', $sqlQuery), 0, $e);
-
-		}
+		//$this->parser->applyOnEachStatement($sqlContent, [$this, 'runQuery']);
 	}
 
 	/**
 	 * @param string $sqlQuery
 	 *
-	 * @return boolean
-	 * @throw ExecutorException
+	 * @throws \Kapcus\DbChanger\Model\Exception\ExecutionException
 	 */
-	public function loadQuery($sqlQuery)
+	private function runQuery($sqlQuery)
 	{
-		// TODO: Implement loadQuery() method.
+		try {
+			$start = new \DateTime();
+			$this->getConnection()->query($sqlQuery);
+			$end = new \DateTime();
+
+			if ($this->isDebug) {
+				$this->writeLog(sprintf('OK (%s) : %s', $start->diff($end)->format("%H:%I:%S"), $sqlQuery));
+			}
+		} catch (Exception $e) {
+			$this->writeLog(sprintf('FAILED : %s', $sqlQuery));
+			throw new ExecutionException(sprintf('Unable to execute following query: %s', $sqlQuery), 0, $e);
+		}
 	}
 
-	public function begin()
-	{
-		$this->storage->begin();
+	/**
+	 * @param $message
+	 */
+	private function writeLog($message) {
+		file_put_contents($this->logDirectory . DIRECTORY_SEPARATOR . 'executor.log', $message . PHP_EOL, FILE_APPEND);
 	}
 
-	public function commit()
+	/**
+	 * @return \Dibi\Connection
+	 */
+	public function getConnection()
 	{
-		$this->storage->commit();
+		return $this->connection;
 	}
 
-	public function rollback()
+	/**
+	 * @param \Dibi\Connection $connection
+	 */
+	public function setConnection($connection)
 	{
-		$this->storage->rollback();
+		$this->connection = $connection;
 	}
+
+
 }

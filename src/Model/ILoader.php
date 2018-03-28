@@ -2,23 +2,21 @@
 
 namespace Kapcus\DbChanger\Model;
 
-use Kapcus\DbChanger\Entity\Environment;
-use Kapcus\DbChanger\Entity\Group;
-
 interface ILoader
 {
 	/**
-	 * @param \Kapcus\DbChanger\Entity\Environment $environment
+	 * @param \Kapcus\DbChanger\Entity\Group[] $groups
 	 *
-	 * @return \Kapcus\DbChanger\Model\DbChange[]
+	 * @return \Kapcus\DbChanger\Entity\DbChange[]
 	 */
-	function loadDbChangesFromInputDirectory(Environment $environment);
+	function loadDbChangesFromInputDirectory(array $groups);
 
 	/**
-	 * @param \Kapcus\DbChanger\Model\DbChange $dbChange
-	 * @param \Kapcus\DbChanger\Model\Group[] $groups
+	 * @param \Kapcus\DbChanger\Entity\Group[] $groups
+	 * @param string $dbChangeCode
 	 *
-	 * @return mixed
+	 * @return \Kapcus\DbChanger\Entity\DbChange
 	 */
-	//function loadExistingDbChange(DbChange $dbChange, array $groups);
+	function loadDbChangeFromInputDirectory(array $groups, $dbChangeCode);
+
 }

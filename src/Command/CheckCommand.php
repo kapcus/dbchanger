@@ -2,7 +2,8 @@
 
 namespace Kapcus\DbChanger\Command;
 
-use Kapcus\DbChanger\Model\Exception\OutOfSyncException;
+use Kapcus\DbChanger\Model\Exception\ConfigurationException;
+use Kapcus\DbChanger\Model\Exception\DbChangeException;
 use Kapcus\DbChanger\Model\IConfigurator;
 use Kapcus\DbChanger\Model\ILoader;
 use Kapcus\DbChanger\Model\Manager;
@@ -10,7 +11,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
-class InitCommand extends Command
+class CheckCommand extends Command
 {
 	/**
 	 * @var \Kapcus\DbChanger\Model\ILoader
@@ -37,20 +38,23 @@ class InitCommand extends Command
 	protected function configure()
 	{
 		$this
-			->setName('dbchanger:init')
-			->setDescription('Initialize environments defined in config file.');
+			->setName('dbchanger:check')
+			->setDescription('Checks whether DbChanger is properly installed and configured.');
 	}
 
 	protected function execute(InputInterface $input, OutputInterface $output)
 	{
 		try {
-			$this->manager->initializeGroups($this->configurator->getGroups());
-			$this->manager->initializeEnvironments($this->configurator->getEnvironments());
-			$output->writeln('Environments successfully initialized.');
-		} catch (OutOfSyncException $e) {
-			$output->writeln($e->getMessage().' Consider running "reinit" command.');
-		} catch (OutOfSyncException $e) {
-			$output->writeln($e->getMessage().' Consider running "reinit" command.');
+			$this->configurator->getEnvironments();
+			$this->manager->checkTables();
+			$output->writeln(sprintf('OK: DbChanger seems to be properly configured.'));
+		} catch (ConfigurationException $e) {
+			$output->writeln(sprintf('FAILURE: %s ', $e->getMessage()));
+		} catch (DbChangeException $e) {
+			$output->writeln(sprintf('FAILURE: %s', $e->getMessage()));
+		} catch (\Exception $e) {
+			$output->writeln(sprintf('FAILURE: %s ', $e->getMessage()));
+			throw $e;
 		}
 	}
 }

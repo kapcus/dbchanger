@@ -10,21 +10,9 @@ interface IConfigurator
 	function getEnvironments();
 
 	/**
-	 * @param string $code
-	 *
-	 * @return \Kapcus\DbChanger\Model\Environment
-	 */
-	function getEnvironmentByCode($code);
-
-	/**
-	 * @return \Kapcus\DbChanger\Model\Group[]
+	 * @return \Kapcus\DbChanger\Entity\Group[]
 	 */
 	function getGroups();
-
-	/**
-	 * @return \Kapcus\DbChanger\Model\User[]
-	 */
-	function getUsers();
 
 	/**
 	 * @return string[]
@@ -32,9 +20,9 @@ interface IConfigurator
 	function getGroupNames();
 
 	/**
-	 * @param string $groupName
+	 * @param string $environmentCode
 	 *
-	 * @return \Kapcus\DbChanger\Model\Group
+	 * @return \Kapcus\DbChanger\Model\ConnectionConfiguration[]
 	 */
-	function getGroupByName($groupName);
+	function getEnvironmentConnectionConfigurations($environmentCode);
 }

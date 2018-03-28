@@ -1,34 +1,69 @@
 parameters:
     dbchanger:
+        # database connection data for dbchanger running instance, mandatory (individual database parameters by driver spec)
         database:
-        	driver: oracle
+        	driver: oci8
         	host: localhost
-        	username: xxxx
-        	password: xxxxx
-        	database: dbname
-        inputDirectory: 'c:\workgit\dbchanger\misc\3.10.3\'
-        outputDirectory: 'c:\workgit\dbchanger\misc\output'
-        logDirectory: 'c:\workgit\dbchanger\misc\log'
-        groups: [central, region, home, operations]
-        manualGroups: [operations]
-        environments:
+        	user: DBCHANGERUSER
+        	password: ''
+        	servicename: DBCHANGERDBINSTANCE
+        	dbname: DBCHANGESCHEMA
+        	port: 1521
 
-            XXX:
-                name: XXXXXXX
-                description: XXXXXXX Environment
-                groups:
-                    central: [MAINUSER]
-                    region: [SLAVEUSER1, SLAVEUSER2]
-                    operations: [MAINUSER, SLAVEUSER1, SLAVEUSER2]
-                placeholders:
-                    '<central>': MAINUSER
-                    '<user>': READERUSER
-                    '<systemuser>': KAPCUS
+        # folder where dbchange files are located
+        inputDirectory: 'misc\sampledata\'
 
+        # folder into which dbchange content should be generated into
+        outputDirectory: 'output'
 
-database:
-	dsn: 'mysql:host=127.0.0.1;dbname=test'
-	user:
-	password:
-	options:
-		lazy: yes
+        # folder for logs and exceptions
+        logDirectory: 'log'
+
+        # in case dbchange files have some prefix, e.g. when dbchange_01_group.sql = you need to define prefix dbchange_
+        filePrefix: ''
+
+        # in this section environments are defined
+        datamodel:
+
+            # list of all defined groups, mandatory and must be filled
+            groups: [central, region, home, operations]
+
+            # which groups should be treated as manual ones (sql content in such fragments is not executed during installation and require manual interaction), optional
+            manualGroups: [operations]
+
+            # environment definitions, mandatory
+            environments:
+
+                # each environment must have 3-letter code, mandatory
+                ENV:
+
+                    # environment name, mandatory
+                    name: XXXXXXX
+
+                    # environment description, optional
+                    description: XXXXXXX Environment
+
+                    # hostname where database is running, mandatory
+                    hostname: ''
+
+                    # database name (instance name, service name), mandatory
+                    dbname: XXXDB
+
+                    # database port, mandatory
+                    port: 1521
+
+                    # database users and their passwords, see this example, mandatory
+                    users:
+                        'MAINUSER' : ''
+                        'SLAVEUSER1' : ''
+                        'SLAVEUSER2' : ''
+
+                    # database groups with assigned users, see this example, mandatory
+                    groups:
+                        central: [MAINUSER]
+                        region: [SLAVEUSER1, SLAVEUSER2]
+
+                    # placeholders used in dbchange fragment sql content, see this example, optional
+                    placeholders:
+                        '<ruser>': READERUSER
+                        '<systemuser>': SYSTEMUSER

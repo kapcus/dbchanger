@@ -1,7 +1,7 @@
 <?php
 namespace Kapcus\DbChanger\Model\Exception;
 
-class SetupException extends \Exception
+class ConnectionException extends \Exception
 {
 
 }

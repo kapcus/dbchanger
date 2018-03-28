@@ -2,7 +2,11 @@
 
 namespace Kapcus\DbChanger\Model;
 
+use Doctrine\Common\Util\Debug;
+use Kapcus\DbChanger\Entity\DbChange;
 use Kapcus\DbChanger\Entity\Environment;
+use Kapcus\DbChanger\Entity\Fragment;
+use Kapcus\DbChanger\Entity\UserGroup;
 use Kapcus\DbChanger\Model\Exception\GeneratorException;
 
 class Generator implements IGenerator
@@ -11,123 +15,234 @@ class Generator implements IGenerator
 	 * @var string directory where all data will be generated into
 	 */
 	private $outputDirectory;
-	private $currentUserPlaceholder = '<region>';
-	private $overrideDirectories = true;
-	private $dbChangeDirectory;
-	private $dbChangeEnvironmentDirectory;
+
+	/**
+	 * @var string
+	 */
+	private $masterFilename = 'complete.sql';
+
+	/**
+	 * @var
+	 */
+	private $masterPathname;
 
 	/**
 	 * @var \Kapcus\DbChanger\Model\IDatabase
 	 */
 	private $database;
 
-	public function __construct($outputDirectory, IDatabase $database)
+	/**
+	 * @var \Kapcus\DbChanger\Model\IParser
+	 */
+	private $parser;
+
+	/**
+	 * @var \DateTime
+	 */
+	private $folderTimestamp;
+
+	public function __construct($outputDirectory, IDatabase $database, IParser $parser)
 	{
 		$this->database = $database;
+
+		$this->prepareDirectory($outputDirectory);
 		$this->outputDirectory = $outputDirectory;
+		$this->parser = $parser;
+
+		$this->folderTimestamp = new \DateTime();
 	}
 
-	public function generateDbChange(Environment $environment, \Kapcus\DbChanger\Entity\DbChange $dbChange)
+	private function prepareDirectory($directory) {
+		if (!file_exists($directory) && !mkdir($directory)) {
+			throw new GeneratorException(sprintf('Unable to create directory %1$s.', $directory));
+		}
+	}
+
+	/**
+	 * @param \Kapcus\DbChanger\Entity\Environment $environment
+	 * @param \Kapcus\DbChanger\Entity\DbChange[] $dbChanges
+	 *
+	 * @return string
+	 * @throws \Kapcus\DbChanger\Model\Exception\GeneratorException
+	 */
+	public function generateDbChanges(Environment $environment, array $dbChanges)
 	{
-		if (!file_exists($this->outputDirectory) && !mkdir($this->outputDirectory)) {
-			throw new GeneratorException(sprintf('Unable to create output directory %1$s.', $this->outputDirectory));
+		$outputDirectory = $this->prepareGenerateCommandDirectory($environment);
+		foreach($dbChanges as $dbChange) {
+			$dbChangeDirectory = $outputDirectory.DIRECTORY_SEPARATOR.$dbChange->getCode();
+			$this->prepareDirectory($dbChangeDirectory);
+			foreach($dbChange->getFragments() as $dbChangeFragment) {
+				$this->generateDbChangeFragmentIntoFile($environment, $dbChangeFragment, $dbChangeDirectory);
+			}
 		}
 
-		$this->dbChangeDirectory = $this->outputDirectory.DIRECTORY_SEPARATOR.$dbChange->getCode();
-		$this->dbChangeEnvironmentDirectory = $this->dbChangeDirectory.DIRECTORY_SEPARATOR.$environment->getCode();
-
-		$this->prepareDirectory($environment, $dbChange);
-		foreach($dbChange->getFragments() as $dbChangeFragment) {
-			$this->generateDbChangeFragment($environment, $dbChangeFragment);
-		}
-
+		return $outputDirectory;
 	}
 
 	/**
 	 * @param \Kapcus\DbChanger\Entity\Environment $environment
 	 * @param \Kapcus\DbChanger\Entity\DbChange $dbChange
 	 *
-	 * @return void
+	 * @return string
 	 * @throws \Kapcus\DbChanger\Model\Exception\GeneratorException
 	 */
-	private function prepareDirectory(Environment $environment, \Kapcus\DbChanger\Entity\DbChange $dbChange)
+	public function generateDbChange(Environment $environment, DbChange $dbChange)
 	{
-		if (!file_exists($this->dbChangeDirectory) && !mkdir($this->dbChangeDirectory)) {
-			throw new GeneratorException(sprintf('Unable to create directory %2$s for DbChange %1$s.', $dbChange->getCode(), $this->dbChangeDirectory));
+		$outputDirectory = $this->prepareGenerateCommandDirectory($environment);
+		$dbChangeDirectory = $outputDirectory.DIRECTORY_SEPARATOR.$dbChange->getCode();
+		$this->prepareDirectory($dbChangeDirectory);
+		foreach($dbChange->getFragments() as $dbChangeFragment) {
+			$this->generateDbChangeFragmentIntoFile($environment, $dbChangeFragment, $dbChangeDirectory);
 		}
-		if (file_exists($this->dbChangeEnvironmentDirectory)) {
-			if (!$this->overrideDirectories) {
-				throw new GeneratorException(sprintf('DbChange %1$s is already generated for environment %2$s (%3$s).', $dbChange->getCode(), $environment->getName(), $environment->getCode()));
-			} else {
-				$files = glob($this->dbChangeEnvironmentDirectory . DIRECTORY_SEPARATOR . '*');
-				foreach($files as $file){
-					if(is_file($file)){
-						unlink($file);
-					}
-				}
-				if (!rmdir($this->dbChangeEnvironmentDirectory)) {
-					throw new GeneratorException(sprintf('Unable to delete directory %4$s for DbChange %1$s for environment %2$s (%3$s).', $dbChange->getCode(), $environment->getName(), $environment->getCode(), $this->dbChangeEnvironmentDirectory));
-				}
-			}
-		}
-		if (!mkdir($this->dbChangeEnvironmentDirectory)) {
-			throw new GeneratorException(
-				sprintf(
-					'Unable to create sub-directory %4$s for DbChange %1$s for environment %2$s (%3$s).',
-					$dbChange->getCode(),
-					$environment->getName(),
-					$environment->getCode(),
-					$this->dbChangeEnvironmentDirectory
-				)
-			);
-		}
+
+		return $outputDirectory;
+	}
+
+	/**
+	 * @param \Kapcus\DbChanger\Entity\Environment $environment
+	 * @param \Kapcus\DbChanger\Entity\Fragment $fragment
+	 *
+	 * @return string
+	 * @throws \Kapcus\DbChanger\Model\Exception\GeneratorException
+	 */
+	public function generateFragment(Environment $environment, Fragment $fragment)
+	{
+		$outputDirectory = $this->prepareGenerateCommandDirectory($environment);
+		$dbChangeDirectory = $outputDirectory.DIRECTORY_SEPARATOR.$fragment->getDbChange()->getCode();
+		$this->prepareDirectory($dbChangeDirectory);
+		$this->generateDbChangeFragmentIntoFile($environment, $fragment, $dbChangeDirectory);
+
+		return $outputDirectory;
+	}
+
+	/**
+	 * @param \Kapcus\DbChanger\Entity\Environment $environment
+	 *
+	 * @return string
+	 * @throws \Kapcus\DbChanger\Model\Exception\GeneratorException
+	 */
+	private function prepareGenerateCommandDirectory(Environment $environment) {
+		$dbChangesDirectory = $this->outputDirectory.DIRECTORY_SEPARATOR.$this->folderTimestamp->format('Ymd_His').'_'.$environment->getCode();
+		$this->masterPathname = $dbChangesDirectory.DIRECTORY_SEPARATOR.$this->masterFilename;
+		$this->prepareDirectory($dbChangesDirectory);
+		return $dbChangesDirectory;
 	}
 
 	/**
 	 * @param \Kapcus\DbChanger\Entity\Environment $environment
 	 * @param \Kapcus\DbChanger\Entity\Fragment $dbChangeFragment
+	 * @param string $dbChangeDirectory
 	 */
-	private function generateDbChangeFragment(Environment $environment, \Kapcus\DbChanger\Entity\Fragment $dbChangeFragment)
+	private function generateDbChangeFragmentIntoFile(Environment $environment, \Kapcus\DbChanger\Entity\Fragment $dbChangeFragment, $dbChangeDirectory)
 	{
-		$filename = $this->dbChangeEnvironmentDirectory.DIRECTORY_SEPARATOR.$dbChangeFragment->getFilename();
+		$filename = $dbChangeDirectory.DIRECTORY_SEPARATOR.$dbChangeFragment->getFilename();
 		$contentTemplate = $dbChangeFragment->getTemplateContentFromFile();
 		$contentTemplate = $this->replacePlaceholders($environment, $contentTemplate);
 		$chunks = [];
 
 		$chunks[] = sprintf('-- %1$s %2$s', $dbChangeFragment->getDbChange()->getCode(), $dbChangeFragment->getGroup()->getName());
-		$chunks[] = '';
 
-		$users = Util::getUsersFromUserGroup($environment->getUserGroups(), $dbChangeFragment->getGroup()->getName());
+		$users = Util::getUserGroupUsersByGroupName($environment->getUserGroups(), $dbChangeFragment->getGroup()->getName());
+
+		$statements = $this->parser->getStatements($contentTemplate);
 
 		foreach($users as $user) {
-			$chunks[] = $this->database->getChangeUserSql($user->getName());
-			$chunks[] = str_replace($this->currentUserPlaceholder, $user->getName(), $contentTemplate);
-			$chunks[] = 'COMMIT;';
+			$chunks[] = $this->addStatementIntoStack($this->database->getChangeUserSql($user->getName()));
+			foreach($statements as $statement) {
+				$newChunks = $this->replaceGroupPlaceholders($environment, $statement);
+				foreach($newChunks as $newChunk) {
+					$chunks[] = $this->addStatementIntoStack($newChunk);
+				}
+			}
+			$chunks[] = $this->addStatementIntoStack('COMMIT');
 			$chunks[] = '';
 		}
 		if (!empty($chunks)) {
 			file_put_contents($filename, implode("\n", $chunks));
+			file_put_contents($this->masterPathname, implode("\n", $chunks), FILE_APPEND);
 		}
 	}
 
-	/*public function generateFragmentContent(Environment $environment, Fragment $dbChangeFragment) {
-		$contentTemplate = $dbChangeFragment->getTemplate();
+	private function addStatementIntoStack($statement) {
+		return $statement.$this->parser->getDelimiter();
+	}
+
+	/**
+	 * @param \Kapcus\DbChanger\Entity\Environment $environment
+	 * @param \Kapcus\DbChanger\Entity\Fragment $dbChangeFragment
+	 * @param \Kapcus\DbChanger\Entity\UserGroup $userGroup
+	 *
+	 * @return string
+	 */
+	public function generateDbChangeFragmentContent(Environment $environment, \Kapcus\DbChanger\Entity\Fragment $dbChangeFragment, UserGroup $userGroup) {
+		$contentTemplate = $dbChangeFragment->getTemplateContent();
 		$contentTemplate = $this->replacePlaceholders($environment, $contentTemplate);
 
-		foreach($environment->getUsersInGroup($dbChangeFragment->getGroup()->getName()) as $user) {
-			$chunks = [];
-			$chunks[] = $this->database->getChangeUserSql($user->getName()).';';
-			$chunks[] = str_replace($this->currentUserPlaceholder, $user->getName(), $contentTemplate);
-			$chunks[] = '';
-			$dbChangeFragment->setUserContent($user, implode("\n", $chunks));
-		}
-		/*if (!empty($chunks)) {
-			$dbChangeFragment->setContent(implode("\n", $chunks));
-		}*/
-	//}
+		$chunks = [];
 
+		$chunks[] = sprintf('-- %1$s : %2$s : %3$s', $dbChangeFragment->getDbChange()->getCode(), $dbChangeFragment->getGroup()->getName(), $userGroup->getUser()->getName());
+
+		$chunks[] = $this->addStatementIntoStack($this->database->getChangeUserSql($userGroup->getUser()->getName()));
+		//$this->parser->applyOnEachStatement($contentTemplate, [$this, 'replaceGroupPlaceholders']);
+		$statements = $this->parser->getStatements($contentTemplate);
+
+		foreach($statements as $statement) {
+			$newChunks = $this->replaceGroupPlaceholders($environment, $statement);
+			foreach($newChunks as $newChunk) {
+				$chunks[] = $this->addStatementIntoStack($newChunk);
+			}
+		}
+		$chunks[] = $this->addStatementIntoStack('COMMIT');
+
+
+		return implode("\n", $chunks);
+	}
+
+	/**
+	 * @param \Kapcus\DbChanger\Entity\Environment $environment
+	 * @param string $content
+	 *
+	 * @return string
+	 */
 	private function replacePlaceholders(Environment $environment, $content) {
-		return str_replace($environment->getPlaceholderCodes(), $environment->getPlaceholderValues(), $content);
+		$codes = [];
+		$values = [];
+		foreach($environment->getPlaceholders() as $placeholder) {
+			$codes[] = $placeholder->getCode();
+			$values[] = $placeholder->getTranslatedValue();
+		}
+		return str_replace($codes, $values, $content);
+	}
+
+	/**
+	 * @param \Kapcus\DbChanger\Entity\Environment $environment
+	 * @param string $statement
+	 *
+	 * @return string[]
+	 */
+	private function replaceGroupPlaceholders(Environment $environment, $statement) {
+		$newStatements = [];
+		foreach ($environment->getGroupNames() as $groupName) {
+			if (strpos($statement, $this->getGroupPlaceholder($groupName)) !== false) {
+				foreach (Util::getUserGroupUsersByGroupName($environment->getUserGroups(), $groupName) as $user) {
+					$newStatements[] = str_replace($this->getGroupPlaceholder($groupName), $user->getName(), $statement);
+				}
+				return $newStatements;
+			}
+		}
+
+		$newStatements[] = $statement;
+
+		return $newStatements;
+	}
+
+	/**
+	 * @param string $groupName
+	 *
+	 * @return string
+	 */
+	private function getGroupPlaceholder($groupName) {
+		return sprintf('<%s>', $groupName);
 	}
 
 }

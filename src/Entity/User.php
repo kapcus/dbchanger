@@ -27,11 +27,23 @@ class User
 	protected $name;
 
 	/**
+	 * @ORM\ManyToOne(targetEntity="Environment", inversedBy="users")
+	 *
+	 * @var \Kapcus\DbChanger\Entity\Environment
+	 **/
+	protected $environment;
+
+	/**
 	 * @ORM\OneToMany(targetEntity="UserGroup", mappedBy="user")
 	 *
 	 * @var \Kapcus\DbChanger\Entity\UserGroup[]
 	 */
 	protected $assignedEnvironmentGroups;
+
+	/**
+	 * @var string
+	 */
+	protected $password;
 
 	/**
 	 * User constructor.
@@ -71,6 +83,38 @@ class User
 	public function assignedToEnvironmentGroup(UserGroup $assignedEnvironmentGroup)
 	{
 		$this->assignedEnvironmentGroups[] = $assignedEnvironmentGroup;
+	}
+
+	/**
+	 * @return string
+	 */
+	public function getPassword()
+	{
+		return $this->password;
+	}
+
+	/**
+	 * @param string $password
+	 */
+	public function setPassword($password)
+	{
+		$this->password = $password;
+	}
+
+	/**
+	 * @return \Kapcus\DbChanger\Entity\Environment
+	 */
+	public function getEnvironment()
+	{
+		return $this->environment;
+	}
+
+	/**
+	 * @param \Kapcus\DbChanger\Entity\Environment $environment
+	 */
+	public function setEnvironment($environment)
+	{
+		$this->environment = $environment;
 	}
 
 

@@ -1,7 +1,7 @@
 <?php
 namespace Kapcus\DbChanger\Model\Exception;
 
-class StorageException extends \Exception
+class ExecutionException extends \Exception
 {
 
 }
