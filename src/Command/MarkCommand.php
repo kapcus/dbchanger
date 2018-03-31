@@ -46,24 +46,22 @@ class MarkCommand extends Command
 		$this
 			->setName('dbchanger:mark')
 			->setDescription(sprintf('Mark DbChange fragment with given status: %s.', InstalledFragment::getStatusNameString()))
-			->addArgument('identificator', InputArgument::REQUIRED, 'Fragment id or fullcode to be marked.')
+			->addArgument('fragmentId', InputArgument::REQUIRED, 'Fragment id.')
 		->addArgument('status', InputArgument::REQUIRED, 'Status to be set.');
 	}
 
 	protected function execute(InputInterface $input, OutputInterface $output)
 	{
-		$fragmentIdentificator = strtoupper($input->getArgument('identificator'));
+		$fragmentId = strtoupper($input->getArgument('fragmentId'));
 		$statusShortcut = strtoupper($input->getArgument('status'));
 
 		try {
-			if (Util::isFullCode($fragmentIdentificator)) {
-				$this->manager->markFragmentByFullCode($fragmentIdentificator, $statusShortcut);
-			} else if (is_numeric($fragmentIdentificator)) {
-				$this->manager->markFragmentById($fragmentIdentificator, $statusShortcut);
+			if (Util::isFragmentId($fragmentId)) {
+				$this->manager->markFragmentById(Util::getIdFromFragmentId($fragmentId), $statusShortcut);
 			} else {
-				throw new DbChangeException(sprintf('Invalid identificator %s. Specify either fragment id or full code (see full code format description).', $fragmentIdentificator));
+				throw new DbChangeException(sprintf('Invalid fragment id %s.', $fragmentId));
 			}
-			$output->writeln(sprintf('Fragment %s successfully marked with status %s.', $fragmentIdentificator, InstalledFragment::getStatusName(InstalledFragment::getStatusByShortcut($statusShortcut))));
+			$output->writeln(sprintf('Fragment %s successfully marked with status %s.', $fragmentId, InstalledFragment::getStatusName(InstalledFragment::getStatusByShortcut($statusShortcut))));
 		} catch (DbChangeException $e) {
 			$output->writeln($e->getMessage());
 		}

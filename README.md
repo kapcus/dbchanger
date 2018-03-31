@@ -12,7 +12,7 @@ Currently supported databases:
 
 Architecture
 =================
-- [Database schema](https://github.com/kapcus/dbchanger/tree/master/misc/erm/datamodel.png)
+- [Database schema](misc/erm/datamodel.png)
 
 Dbchange consists of fragments. Fragment is bunch of sql queries defined in one sql file.
 E.g. Dbchange `12345` has its own directory `dbchanger/misc/sampledata/12345`.
@@ -39,7 +39,7 @@ User can define arbitraty number of groups and assigned arbitraty number of user
 In fragment sql content `placeholders` can be used. Processing engine simple replace placeholder with
 defined value in config file which is to be replaced. 
 
-Group name can be also used as a placeholder (currently only in one-line statements). As a result,
+Group name can be also used as a placeholder. As a result,
 line of sql code will be inserted for each user assigned into the group and placeholder value will 
 be replaced with user name.
 
@@ -111,7 +111,7 @@ php bin/console.php dbchanger:mark DEV-12345-5-FSIDEVL I
 ```
 
 Available fragment states:
-* T = To be installed - initial status which means fragment is ready for installation
+* N = New - initial status which means fragment is ready for installation
 * P = Pending - status signaling that this fragment was already installed but installation has not finished
 * I = Installed - fragment has been successfully installed
 * R = Rolled back - fragment has been successfully rolled back

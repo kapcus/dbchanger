@@ -32,4 +32,5 @@ services:
 	- Kapcus\DbChanger\Command\InitCommand
 	- Kapcus\DbChanger\Command\InstallCommand
 	- Kapcus\DbChanger\Command\GenerateCommand
+	- Kapcus\DbChanger\Command\StatusCommand
 	- Doctrine\ORM\EntityManager::create(%dbchanger.database%,  Doctrine\ORM\Tools\Setup::createAnnotationMetadataConfiguration(["/src/Entity"], true, null, null, false))

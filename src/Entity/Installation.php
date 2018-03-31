@@ -56,6 +56,11 @@ class Installation
 	protected $status;
 
 	/**
+	 * @var \DateTime
+	 */
+	protected $createdAt;
+
+	/**
 	 * Installation constructor.
 	 */
 	public function __construct()
@@ -159,6 +164,12 @@ class Installation
 		$this->status = $status;
 	}
 
-
+	/**
+	 * @return \DateTime
+	 */
+	public function getCreatedAt()
+	{
+		return $this->createdAt;
+	}
 
 }

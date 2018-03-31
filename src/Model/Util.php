@@ -73,14 +73,48 @@ class Util
 	}
 
 	/**
-	 * @param string $fragmentCode
+	 * @param string $fragmentId
 	 *
 	 * @return bool
 	 */
-	public static function isFullCode($fragmentCode)
+	public static function isFragmentId($fragmentId)
 	{
-		$chunks = explode(self::FULL_CODE_SEPARATOR, $fragmentCode);
-		return count($chunks) == 4;
+		if (!is_string($fragmentId)) {
+			return false;
+		}
+		if ($fragmentId[0] != 'F') {
+			return false;
+		}
+		return is_numeric(substr($fragmentId, 1));
+	}
+
+	/**
+	 * @param string $fragmentIndex
+	 *
+	 * @return bool
+	 */
+	public static function isFragmentIndex($fragmentIndex)
+	{
+		if (!is_string($fragmentIndex)) {
+			return false;
+		}
+		if ($fragmentIndex[0] != 'I') {
+			return false;
+		}
+		return is_numeric(substr($fragmentIndex, 1));
+	}
+
+	/**
+	 * @param string $fragmentId
+	 *
+	 * @return int|null
+	 */
+	public static function getIdFromFragmentId($fragmentId) {
+		if (self::isFragmentId($fragmentId)) {
+			return intval(substr($fragmentId, 1));
+		} else {
+			return null;
+		}
 	}
 
 	/**
@@ -95,5 +129,36 @@ class Util
 
 	public static function getFullCode($environmentCode, $dbChangeCode, $fragmentIndex, $userName) {
 		return sprintf('%2$s%1$s%3$s%1$s%4$s%1$s%5$s', self::FULL_CODE_SEPARATOR, $environmentCode, $dbChangeCode, $fragmentIndex, $userName);
+	}
+
+	/**
+	 * @param int $id
+	 *
+	 * @return string
+	 */
+	public static function getFragmentId($id) {
+		return sprintf('F%s', $id);
+	}
+
+	/**
+	 * @param int $index
+	 *
+	 * @return string
+	 */
+	public static function getFragmentIndex($index) {
+		return sprintf('I%s', $index);
+	}
+
+	/**
+	 * @param string $fragmentIndex
+	 *
+	 * @return int|null
+	 */
+	public static function getIndexFromFragmentIndex($fragmentIndex) {
+		if (self::isFragmentIndex($fragmentIndex)) {
+			return intval(substr($fragmentIndex, 1));
+		} else {
+			return null;
+		}
 	}
 }

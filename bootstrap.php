@@ -19,5 +19,6 @@ $application->add($container->getByType(Kapcus\DbChanger\Command\ReinitCommand::
 $application->add($container->getByType(Kapcus\DbChanger\Command\InstallCommand::class));
 $application->add($container->getByType(Kapcus\DbChanger\Command\GenerateCommand::class));
 $application->add($container->getByType(Kapcus\DbChanger\Command\RegisterCommand::class));
+$application->add($container->getByType(Kapcus\DbChanger\Command\StatusCommand::class));
 exit($application->run());
 

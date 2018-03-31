@@ -4,3 +4,4 @@
 - global views support
 - create views for easier management
 - allow hooks for target schema table operations
+- try to deploy procedure, trigger (where delimiter inside)

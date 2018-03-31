@@ -10,7 +10,7 @@ use Doctrine\ORM\Mapping AS ORM;
  */
 class InstalledFragment
 {
-	const STATUS_TOBEINSTALLED = 1;
+	const STATUS_NEW = 1;
 
 	const STATUS_PENDING = 2;
 
@@ -22,7 +22,7 @@ class InstalledFragment
 
 
 	private static $activeStatuses = [
-		self::STATUS_TOBEINSTALLED,
+		self::STATUS_NEW,
 		self::STATUS_PENDING
 	];
 	/**
@@ -209,7 +209,7 @@ class InstalledFragment
 	{
 		if (!isset(self::$statuses)) {
 			self::$statuses = [
-				self::STATUS_TOBEINSTALLED => '(T)o be installed',
+				self::STATUS_NEW => '(N)ew',
 				self::STATUS_PENDING => '(P)ending',
 				self::STATUS_INSTALLED => '(I)nstalled',
 				self::STATUS_ROLLEDBACK => '(R)olled back',
@@ -257,9 +257,18 @@ class InstalledFragment
 	/**
 	 * @param int $key
 	 *
-	 * @return mixed|null
+	 * @return string|null
 	 */
 	public static function getStatusName($key) {
-		return isset(self::$statuses[$key]) ? self::$statuses[$key] : null;
+		return isset(self::$statuses[$key]) ? str_replace(['(', ')'], '', self::$statuses[$key]) : null;
+	}
+
+	/**
+	 * @param int $key
+	 *
+	 * @return string|null
+	 */
+	public static function getStatusShortcut($key) {
+		return isset(self::$statuses[$key]) ? self::$statuses[$key][1] : null;
 	}
 }

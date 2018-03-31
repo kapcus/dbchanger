@@ -2,11 +2,13 @@
 
 namespace Kapcus\DbChanger\Command;
 
+use Kapcus\DbChanger\Model\Exception\DbChangeException;
 use Kapcus\DbChanger\Model\Exception\EnvironmentException;
 use Kapcus\DbChanger\Model\IConfigurator;
 use Kapcus\DbChanger\Model\IGenerator;
 use Kapcus\DbChanger\Model\ILoader;
 use Kapcus\DbChanger\Model\Manager;
+use Kapcus\DbChanger\Model\Util;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -57,35 +59,37 @@ class GenerateCommand extends Command
 	protected function execute(InputInterface $input, OutputInterface $output)
 	{
 		$environmentCode = strtoupper($input->getArgument('env'));
-		$dbchangeCode = strtoupper($input->getArgument('dbchange'));
-		$fragmentIndex = intval($input->getArgument('fragmentIndex'));
+		$dbChangeCode = strtoupper($input->getArgument('dbchange'));
+		$fragmentIndex = $input->getArgument('fragmentIndex');
+		$fragmentId = Util::getIndexFromFragmentIndex($fragmentIndex);
 
-		$outputDirectory = '';
 		try {
 			$environment = $this->manager->getEnvironmentByCode($environmentCode);
-
-			$dbChanges = $this->loader->loadDbChangesFromInputDirectory($this->manager->getGroups());
-			if (isset($dbchangeCode)) {
-				foreach($dbChanges as $dbChange) {
-					if ($dbChange->getCode() == $dbchangeCode) {
-						if (isset($fragmentIndex)) {
-							foreach($dbChange->getFragments() as $fragment) {
-								if ($fragment->getIndex() == $fragmentIndex) {
-									$outputDirectory = $this->generator->generateFragment($environment, $fragment);
-									break;
-								}
-							}
-						} else {
-							$outputDirectory = $this->generator->generateDbChange($environment, $dbChange);
+			if ($dbChangeCode != '') {
+				$dbChange = $this->loader->loadDbChangeFromInputDirectory($this->manager->getGroups(), $dbChangeCode);
+				if ($fragmentId !== null) {
+					$found = false;
+					foreach($dbChange->getFragments() as $fragment) {
+						if ($fragment->getIndex() == $fragmentId) {
+							$found = true;
+							$this->generator->generateFragmentIntoFile($environment, $fragment);
+							break;
 						}
-						break;
 					}
+					if (!$found) {
+						throw new DbChangeException('Fragment not found.');
+					}
+				} else {
+					$this->generator->generateDbChangeIntoFile($environment, $dbChange);
 				}
 			} else {
-				$outputDirectory = $this->generator->generateDbChanges($environment, $dbChanges);
+				$dbChanges = $this->loader->loadDbChangesFromInputDirectory($this->manager->getGroups());
+				$this->generator->generateDbChangesIntoFile($environment, $dbChanges);
 			}
-			$output->writeln(sprintf(' Requested content successfully generated into output subdirectory %s.', $outputDirectory));
+			$output->writeln(sprintf('Requested content successfully generated into output subdirectory %s.', $this->generator->getOutputDirectory()));
 		} catch (EnvironmentException $e) {
+			$output->writeln($e->getMessage().' Consider running "reinit" command.');
+		} catch (DbChangeException $e) {
 			$output->writeln($e->getMessage().' Consider running "reinit" command.');
 		}
 	}

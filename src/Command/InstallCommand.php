@@ -71,6 +71,7 @@ class InstallCommand extends Command
 		} catch (EnvironmentException $e) {
 			$output->writeln($e->getMessage());
 		}
+		$output->writeln(sprintf('Installing aborted. Check log to identify which query has failed, use \'status\' command.', $dbChangeCode));
 		exit(1);
 	}
 }

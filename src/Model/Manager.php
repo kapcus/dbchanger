@@ -20,6 +20,8 @@ use Kapcus\DbChanger\Model\Exception\EnvironmentException;
 use Kapcus\DbChanger\Model\Exception\ExecutionException;
 use Kapcus\DbChanger\Model\Exception\InstallationException;
 use Kapcus\DbChanger\Model\Exception\OutOfSyncException;
+use Kapcus\DbChanger\Model\Reporting\Column;
+use Kapcus\DbChanger\Model\Reporting\Table;
 
 class Manager
 {
@@ -177,17 +179,50 @@ class Manager
 	 * @param \Kapcus\DbChanger\Entity\Environment $environment
 	 * @param \Kapcus\DbChanger\Entity\DbChange $dbChange
 	 *
+	 * @param bool $activeOnly
+	 *
 	 * @return \Kapcus\DbChanger\Entity\Installation|null
 	 */
-	public function getActiveInstallation(Environment $environment, DbChange $dbChange)
+	public function getInstallation(Environment $environment, DbChange $dbChange, $activeOnly = false)
 	{
-		return $this->entityManager->getRepository(Installation::class)->findOneBy(
-			[
-				'status' => InstalledFragment::getActiveStatuses(),
-				'environment' => $environment->getId(),
-				'dbChange' => $dbChange->getId(),
-			]
-		);
+		$whereCondition = $this->getInstallationWhereCondition($environment, $dbChange, $activeOnly);
+
+		return $this->entityManager->getRepository(Installation::class)->findOneBy($whereCondition);
+	}
+
+	/**
+	 * @param \Kapcus\DbChanger\Entity\Environment $environment
+	 * @param \Kapcus\DbChanger\Entity\DbChange $dbChange
+	 *
+	 * @param bool $activeOnly
+	 *
+	 * @return \Kapcus\DbChanger\Entity\Installation[]
+	 */
+	public function getInstallations(Environment $environment, DbChange $dbChange, $activeOnly = false)
+	{
+		$whereCondition = $this->getInstallationWhereCondition($environment, $dbChange, $activeOnly);
+
+		return $this->entityManager->getRepository(Installation::class)->findBy($whereCondition);
+	}
+
+	/**
+	 * @param \Kapcus\DbChanger\Entity\Environment $environment
+	 * @param \Kapcus\DbChanger\Entity\DbChange $dbChange
+	 * @param boolean $activeOnly
+	 *
+	 * @return array
+	 */
+	private function getInstallationWhereCondition(Environment $environment, DbChange $dbChange, $activeOnly)
+	{
+		$whereCondition = [
+			'environment' => $environment->getId(),
+			'dbChange' => $dbChange->getId(),
+		];
+		if ($activeOnly) {
+			$whereCondition['status'] = InstalledFragment::getActiveStatuses();
+		}
+
+		return $whereCondition;
 	}
 
 	/**
@@ -202,13 +237,13 @@ class Manager
 		$installation = $this->createNewInstallation($environment, $dbChange, self::DEFAULT_USER);
 		foreach ($dbChange->getFragments() as $fragment) {
 			foreach ($environment->getUserGroupsByGroup($fragment->getGroup()) as $userGroup) {
-				$content = $this->generator->generateDbChangeFragmentContent($environment, $fragment, $userGroup);
+				$content = $this->generator->getFragmentContent($environment, $fragment, $userGroup);
 				$installedFragment = new InstalledFragment();
 				$installedFragment->setInstallation($installation);
 				$installedFragment->setFragment($fragment);
 				$installedFragment->setUserGroup($userGroup);
 				$installedFragment->setContent($content);
-				$installedFragment->setStatus(InstalledFragment::STATUS_TOBEINSTALLED);
+				$installedFragment->setStatus(InstalledFragment::STATUS_NEW);
 				$this->entityManager->persist($installedFragment);
 			}
 		}
@@ -219,7 +254,7 @@ class Manager
 
 	public function installDbChange(Environment $environment, array $connectionConfigurations, DbChange $dbChange)
 	{
-		$installation = $this->getActiveInstallation($environment, $dbChange);
+		$installation = $this->getInstallation($environment, $dbChange, true);
 		if ($installation == null) {
 			$installation = $this->prepareInstallation($environment, $dbChange);
 		}
@@ -227,39 +262,27 @@ class Manager
 		try {
 			$fragmentsForInstallation = $this->getInstallationFragmentsByStatus(
 				$installation,
-				[InstalledFragment::STATUS_TOBEINSTALLED, InstalledFragment::STATUS_PENDING]
+				[InstalledFragment::STATUS_NEW, InstalledFragment::STATUS_PENDING]
 			);
 			foreach ($fragmentsForInstallation as $installationFragment) {
 				if ($installationFragment->getFragment()->getGroup()->getIsManual()) {
 					throw new InstallationException(
 						sprintf(
-							'Manual fragment (id: %s) %s needs to be deployed manually. ' .
+							'!!!Installation interrupted!!! ' .
+							'Manual fragment %s needs to be deployed manually. ' .
 							'Use \'generate\' command to get sql to be executed. ' .
-							'Then use \'mark\' command to mark fragment as installed and rerun \'install\' command. ' .
-							'Installation aborted.',
-							$installationFragment->getId(),
-							Util::getFullCode(
-								$environment->getCode(),
-								$installationFragment->getFragment()->getDbChange()->getCode(),
-								$installationFragment->getFragment()->getIndex(),
-								$installationFragment->getUserGroup()->getUser()->getName()
-							)
+							'Then use \'mark\' command to mark fragment as installed and rerun \'install\' command. ',
+							Util::getFragmentId($installationFragment->getId())
 						)
 					);
 				}
 				if ($installationFragment->getStatus() == InstalledFragment::STATUS_PENDING) {
 					throw new InstallationException(
 						sprintf(
-							'Pending fragment (id: %s) %s requires manual fix. ' .
-							'Once fixed, use \'mark\' command and rerun \'install\' command. ' .
-							'Installation aborted.',
-							$installationFragment->getId(),
-							Util::getFullCode(
-								$environment->getCode(),
-								$installationFragment->getFragment()->getDbChange()->getCode(),
-								$installationFragment->getFragment()->getIndex(),
-								$installationFragment->getUserGroup()->getUser()->getName()
-							)
+							'!!!Installation interrupted!!! ' .
+							'Pending fragment %s requires manual fix. ' .
+							'Once fixed, use \'mark\' command and rerun \'install\' command. ',
+							Util::getFragmentId($installationFragment->getId())
 						)
 					);
 				}
@@ -411,6 +434,23 @@ class Manager
 	}
 
 	/**
+	 * @param \Kapcus\DbChanger\Entity\Installation $installation
+	 *
+	 * @return \Kapcus\DbChanger\Entity\InstalledFragment[]
+	 */
+	public function getInstallationFragments(Installation $installation)
+	{
+		return $this->entityManager->getRepository(InstalledFragment::class)->findBy(
+			[
+				'installation' => $installation->getId(),
+			],
+			[
+				'id' => 'ASC',
+			]
+		);
+	}
+
+	/**
 	 * @param int $id
 	 *
 	 * @return null|\Kapcus\DbChanger\Entity\InstalledFragment
@@ -429,13 +469,13 @@ class Manager
 	 */
 	private function getInstallationFragmentByFullCode($fragmentFullCode)
 	{
-		if (!Util::isFullCode($fragmentFullCode)) {
+		if (!Util::isFragmentId($fragmentFullCode)) {
 			throw new DbChangeException(sprintf('Given full code %s is not valid.'));
 		}
 		list($environmentCode, $dbChangeCode, $fragmentIndex, $userName) = Util::getFullCodeParts($fragmentFullCode);
 		$environment = $this->getEnvironmentByCode($environmentCode);
 		$dbChange = $this->getDbChangeByCode($dbChangeCode);
-		$installation = $this->getActiveInstallation($environment, $dbChange);
+		$installation = $this->getInstallation($environment, $dbChange, true);
 		if ($installation == null) {
 			throw new DbChangeException(sprintf('Given user %s is not valid for environment %s.', $userName, $environmentCode));
 		}
@@ -543,17 +583,17 @@ class Manager
 
 	/**
 	 * @param \Kapcus\DbChanger\Entity\DbChange $dbChange
-	 * @param \Kapcus\DbChanger\Entity\DbChange $dbChange
+	 * @param \Kapcus\DbChanger\Entity\DbChange $secondDbChange
 	 *
 	 * @return bool
 	 */
-	private function isEqualDbChanges(DbChange $dbChange, DbChange $dbChange)
+	private function isEqualDbChanges(DbChange $dbChange, DbChange $secondDbChange)
 	{
-		if ($dbChange->getCode() != $dbChange->getCode()) {
+		if ($dbChange->getCode() != $secondDbChange->getCode()) {
 			return false;
 		}
 
-		if ($dbChange->getDescription() != $dbChange->getDescription()) {
+		if ($dbChange->getDescription() != $secondDbChange->getDescription()) {
 			return false;
 		}
 
@@ -600,7 +640,7 @@ class Manager
 		$installation->setCreatedBy($createdBy);
 		$installation->setEnvironment($environment);
 		$installation->setDbChange($dbChange);
-		$installation->setStatus(InstalledFragment::STATUS_TOBEINSTALLED);
+		$installation->setStatus(InstalledFragment::STATUS_NEW);
 		$this->entityManager->persist($installation);
 		$this->entityManager->flush();
 
@@ -663,5 +703,66 @@ class Manager
 				'userGroup' => $userGroup,
 			]
 		);
+	}
+
+	/**
+	 * @param \Kapcus\DbChanger\Entity\Environment $environment
+	 * @param \Kapcus\DbChanger\Entity\DbChange $dbChange
+	 *
+	 * @return array
+	 */
+	public function getDbChangeReport(Environment $environment, DbChange $dbChange)
+	{
+		$output = [];
+		$output['messages'] = [];
+		$activeInstallations = [];
+		$installations = $this->getInstallations($environment, $dbChange);
+
+		$table = new Table();
+		$table->addColumn(new Column('ID', Column::TYPE_STRING, 8));
+		$table->addColumn(new Column('STATUS', Column::TYPE_STRING, 15));
+		$table->addColumn(new Column('CREATED AT', Column::TYPE_STRING, 10));
+
+		foreach ($installations as $installation) {
+			$table->addRow();
+			$table->addField($installation->getId());
+			$table->addField(InstalledFragment::getStatusName($installation->getStatus()));
+			$table->addField($installation->getCreatedAt());
+			if (in_array($installation->getStatus(), InstalledFragment::getActiveStatuses())) {
+				$activeInstallations[] = $installation;
+			}
+		}
+		$output['installations'] = $table;
+		$output['activeinstallations'] = [];
+
+		if (count($activeInstallations) > 1) {
+			$output['messages'][] = '!!!!There are %s active installation defined, which is wrong (1 active installation for particular dbchange and environment can exist at the same time) and it seems that DbChanger database is corrupted. Fix this immediately.!!!!';
+		}
+		foreach ($activeInstallations as $installation) {
+			$installationFragments = $this->getInstallationFragments($installation);
+
+			$table = new Table();
+			$table->addColumn(new Column('ID', Column::TYPE_STRING, 8));
+			$table->addColumn(new Column('INDEX', Column::TYPE_STRING, 6));
+			$table->addColumn(new Column('STATUS', Column::TYPE_STRING, 15));
+			$table->addColumn(new Column('MANUAL', Column::TYPE_STRING, 6));
+			$table->addColumn(new Column('GROUP', Column::TYPE_STRING, 20));
+			$table->addColumn(new Column('USER', Column::TYPE_STRING, 20));
+
+			$key = '';
+			foreach ($installationFragments as $installationFragment) {
+				$key = $installationFragment->getInstallation()->getId();
+				$table->addRow();
+				$table->addField(Util::getFragmentId($installationFragment->getId()));
+				$table->addField(Util::getFragmentIndex($installationFragment->getFragment()->getIndex()));
+				$table->addField(InstalledFragment::getStatusName($installationFragment->getStatus()));
+				$table->addField($installationFragment->getFragment()->getGroup()->getIsManual() ? 'YES' : 'no');
+				$table->addField($installationFragment->getUserGroup()->getGroup()->getName());
+				$table->addField($installationFragment->getUserGroup()->getUser()->getName());
+			}
+			$output['activeinstallations'][$key] = $table;
+		}
+
+		return $output;
 	}
 }
