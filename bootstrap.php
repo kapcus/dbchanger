@@ -9,13 +9,21 @@ if (!is_file(__DIR__ . '/config.local.neon')) {
 	echo 'Move dbchanger/misc/config.local.neon.example into dbchanger/config.local.neon first.';
 	exit(1);
 }
+/* NETTE DI >= 2.4
 $class = $loader->load(function($compiler) {
+	$compiler->loadConfig(__DIR__ . '/config/config.neon');
+	$compiler->loadConfig(__DIR__ . '/config.local.neon');
+});
+*/
+
+// NETTE DI == 2.3
+$class = $loader->load('', function($compiler) {
 	$compiler->loadConfig(__DIR__ . '/config/config.neon');
 	$compiler->loadConfig(__DIR__ . '/config.local.neon');
 });
 $container = new $class;
 
-$application = new Application('DbChanger', '0.4.0');
+$application = new Application('DbChanger', '0.4.1');
 $application->add($container->getByType(Kapcus\DbChanger\Command\CheckCommand::class));
 $application->add($container->getByType(Kapcus\DbChanger\Command\MarkCommand::class));
 $application->add($container->getByType(Kapcus\DbChanger\Command\InitCommand::class));

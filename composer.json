@@ -1,6 +1,6 @@
 {
     "name": "kapcus/dbchanger",
-    "version": "0.4",
+    "version": "0.4.1",
     "description": "Database change installation toolkit",
     "type": "library",
     "license": "MIT",
@@ -21,6 +21,6 @@
         "nette/finder": "^2",
         "doctrine/orm": "2.5.*",
         "symfony/yaml": "2.*",
-        "nette/di": "^2.4"
+        "nette/di": "^2.3"
     }
 }
