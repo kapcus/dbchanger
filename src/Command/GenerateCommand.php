@@ -2,6 +2,7 @@
 
 namespace Kapcus\DbChanger\Command;
 
+use Doctrine\Common\Util\Debug;
 use Kapcus\DbChanger\Model\Exception\DbChangeException;
 use Kapcus\DbChanger\Model\Exception\EnvironmentException;
 use Kapcus\DbChanger\Model\IConfigurator;
@@ -53,7 +54,8 @@ class GenerateCommand extends Command
 			->setDescription('Generate DbChange sql content from templates defined in given folder.')
 			->addArgument('env', InputArgument::REQUIRED, 'Target environment code')
 			->addArgument('dbchange', InputArgument::OPTIONAL, 'DbChange code of the dbChange to be generated')
-			->addArgument('fragmentIndex', InputArgument::OPTIONAL, 'Fragment index of the fragment to be generated');
+			->addArgument('fragmentIndex', InputArgument::OPTIONAL, 'Fragment index of the fragment to be generated')
+			->addOption('debug', 'd', InputOption::VALUE_NONE, 'y');
 	}
 
 	protected function execute(InputInterface $input, OutputInterface $output)
@@ -62,6 +64,10 @@ class GenerateCommand extends Command
 		$dbChangeCode = strtoupper($input->getArgument('dbchange'));
 		$fragmentIndex = $input->getArgument('fragmentIndex');
 		$fragmentId = Util::getIndexFromFragmentIndex($fragmentIndex);
+
+		if ($input->getOption('debug')) {
+			$this->generator->enableDebug();
+		}
 
 		try {
 			$environment = $this->manager->getEnvironmentByCode($environmentCode);

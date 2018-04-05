@@ -10,6 +10,11 @@ use Kapcus\DbChanger\Entity\UserGroup;
 interface IGenerator
 {
 	/**
+	 * @return void
+	 */
+	public function enableDebug();
+
+	/**
 	 * @param \Kapcus\DbChanger\Entity\Environment $environment
 	 * @param \Kapcus\DbChanger\Entity\DbChange[] $dbChange
 	 *

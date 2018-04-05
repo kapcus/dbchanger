@@ -52,6 +52,25 @@ class DbChange
 	private $installations = [];
 
 	/**
+	 * @ORM\OneToMany(targetEntity="Requirement", mappedBy="masterChange", cascade={"persist", "remove"})
+	 *
+	 * @var \Kapcus\DbChanger\Entity\Requirement[]
+	 */
+	private $requiredDbChanges = [];
+
+	/**
+	 * @ORM\OneToMany(targetEntity="Requirement", mappedBy="requiredDbChange", cascade={"persist", "remove"})
+	 *
+	 * @var \Kapcus\DbChanger\Entity\DbChange[]
+	 */
+	private $dependentDbChanges = [];
+
+	/**
+	 * @var \Kapcus\DbChanger\Entity\DbChange[]
+	 */
+	private $reqDbChanges = [];
+
+	/**
 	 * DbChange constructor.
 	 */
 	public function __construct()
@@ -158,6 +177,55 @@ class DbChange
 	{
 		$this->installations[] = $installation;
 	}
+
+	/**
+	 * @return \Kapcus\DbChanger\Entity\Requirement[]
+	 */
+	public function getRequiredDbChanges()
+	{
+		return $this->requiredDbChanges;
+	}
+
+	/**
+	 * @param \Kapcus\DbChanger\Entity\Requirement $requiredDbChange
+	 */
+	public function addRequiredDbChange(Requirement $requiredDbChange)
+	{
+		$this->requiredDbChanges[] = $requiredDbChange;
+	}
+
+	/**
+	 * @return \Kapcus\DbChanger\Entity\DbChange[]
+	 */
+	public function getDependentDbChanges()
+	{
+		return $this->dependentDbChanges;
+	}
+
+	/**
+	 * @param \Kapcus\DbChanger\Entity\DbChange $dependentDbChange
+	 */
+	public function addDependentDbChanges(DbChange $dependentDbChange)
+	{
+		$this->dependentDbChanges[] = $dependentDbChange;
+	}
+
+	/**
+	 * @return \Kapcus\DbChanger\Entity\DbChange[]
+	 */
+	public function getReqDbChanges()
+	{
+		return $this->reqDbChanges;
+	}
+
+	/**
+	 * @param \Kapcus\DbChanger\Entity\DbChange $reqDbChange
+	 */
+	public function addReqDbChanges(DbChange $reqDbChange)
+	{
+		$this->reqDbChanges[] = $reqDbChange;
+	}
+
 
 
 }

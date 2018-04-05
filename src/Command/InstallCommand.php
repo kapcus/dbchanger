@@ -61,7 +61,6 @@ class InstallCommand extends Command
 		try {
 			$environment = $this->manager->getEnvironmentByCode($environmentCode);
 			$dbChange = $this->manager->getDbChangeByCode($dbChangeCode);
-			$output->writeln(sprintf('Installing DbChange %s into environment %s....', $dbChangeCode, $environment->getCode()));
 			$this->manager->installDbChange($environment, $this->configurator->getEnvironmentConnectionConfigurations($environment->getCode()), $dbChange);
 			exit(0);
 		} catch (DbChangeException $e) {

@@ -2,6 +2,7 @@
 
 namespace Kapcus\DbChanger\Model;
 
+use Doctrine\Common\Util\Debug;
 use Kapcus\DbChanger\Entity\DbChange;
 use Kapcus\DbChanger\Entity\Environment;
 use Kapcus\DbChanger\Entity\Fragment;
@@ -10,6 +11,14 @@ use Kapcus\DbChanger\Model\Exception\GeneratorException;
 
 class Generator implements IGenerator
 {
+	const PLACEHOLDER_START = '/*START*/';
+
+	const PLACEHOLDER_END = '/*END*/';
+
+	const PLACEHOLDER_GLUE_START = '/*GLUE_START ';
+
+	const PLACEHOLDER_GLUE_END = 'GLUE_END*/';
+
 	/**
 	 * @var string directory where all data will be generated into
 	 */
@@ -45,6 +54,11 @@ class Generator implements IGenerator
 	 */
 	private $folderTimestamp;
 
+	/**
+	 * @var bool
+	 */
+	private $isDebug = false;
+
 	public function __construct($outputDirectory, IDatabase $database, IParser $parser)
 	{
 		$this->database = $database;
@@ -56,7 +70,8 @@ class Generator implements IGenerator
 		$this->folderTimestamp = new \DateTime();
 	}
 
-	private function prepareDirectory($directory) {
+	private function prepareDirectory($directory)
+	{
 		if (!file_exists($directory) && !mkdir($directory)) {
 			throw new GeneratorException(sprintf('Unable to create directory %1$s.', $directory));
 		}
@@ -70,7 +85,7 @@ class Generator implements IGenerator
 	 */
 	public function generateDbChangesIntoFile(Environment $environment, array $dbChanges)
 	{
-		foreach($dbChanges as $dbChange) {
+		foreach ($dbChanges as $dbChange) {
 			$this->generateDbChangeIntoFile($environment, $dbChange);
 		}
 	}
@@ -83,7 +98,7 @@ class Generator implements IGenerator
 	 */
 	public function generateDbChangeIntoFile(Environment $environment, DbChange $dbChange)
 	{
-		foreach($dbChange->getFragments() as $dbChangeFragment) {
+		foreach ($dbChange->getFragments() as $dbChangeFragment) {
 			$this->generateFragmentIntoFile($environment, $dbChangeFragment);
 		}
 	}
@@ -103,10 +118,13 @@ class Generator implements IGenerator
 			$content .= $this->doGenerateFragmentContent($environment, $fragment, $userGroup, true);
 		}
 
-		$filename = $dbChangeDirectory.DIRECTORY_SEPARATOR.$fragment->getFilename();
+		$filename = $dbChangeDirectory . DIRECTORY_SEPARATOR . $fragment->getFilename();
 		if ($content != '') {
 			file_put_contents($filename, $content);
 			file_put_contents($this->masterPathname, $content, FILE_APPEND);
+			if ($this->isDebug) {
+				var_dump($content);
+			}
 		}
 	}
 
@@ -116,9 +134,11 @@ class Generator implements IGenerator
 	 * @return string
 	 * @throws \Kapcus\DbChanger\Model\Exception\GeneratorException
 	 */
-	private function prepareOutputDirectory(Environment $environment) {
-		$outputDirectory = $this->rootOutputDirectory.DIRECTORY_SEPARATOR.$this->folderTimestamp->format('Ymd_His').'_'.$environment->getCode();
-		$this->masterPathname = $outputDirectory.DIRECTORY_SEPARATOR.$this->masterFilename;
+	private function prepareOutputDirectory(Environment $environment)
+	{
+		$outputDirectory = $this->rootOutputDirectory . DIRECTORY_SEPARATOR . $this->folderTimestamp->format('Ymd_His') . '_' . $environment->getCode(
+			);
+		$this->masterPathname = $outputDirectory . DIRECTORY_SEPARATOR . $this->masterFilename;
 		$this->prepareDirectory($outputDirectory);
 		$this->setOutputDirectory($outputDirectory);
 	}
@@ -130,10 +150,12 @@ class Generator implements IGenerator
 	 * @return string
 	 * @throws \Kapcus\DbChanger\Model\Exception\GeneratorException
 	 */
-	private function prepareDbChangeOutputDirectory(Environment $environment, $dbChangeCode) {
+	private function prepareDbChangeOutputDirectory(Environment $environment, $dbChangeCode)
+	{
 		$this->prepareOutputDirectory($environment);
-		$dbChangeDirectory = $this->getOutputDirectory().DIRECTORY_SEPARATOR.$dbChangeCode;
+		$dbChangeDirectory = $this->getOutputDirectory() . DIRECTORY_SEPARATOR . $dbChangeCode;
 		$this->prepareDirectory($dbChangeDirectory);
+
 		return $dbChangeDirectory;
 	}
 
@@ -144,7 +166,8 @@ class Generator implements IGenerator
 	 *
 	 * @return string
 	 */
-	public function getFragmentContent(Environment $environment, Fragment $dbChangeFragment, UserGroup $userGroup) {
+	public function getFragmentContent(Environment $environment, Fragment $dbChangeFragment, UserGroup $userGroup)
+	{
 		return $this->doGenerateFragmentContent($environment, $dbChangeFragment, $userGroup, false);
 	}
 
@@ -156,34 +179,37 @@ class Generator implements IGenerator
 	 *
 	 * @return string
 	 */
-	public function doGenerateFragmentContent(Environment $environment, Fragment $dbChangeFragment, UserGroup $userGroup, $loadFromFile = false) {
+	public function doGenerateFragmentContent(Environment $environment, Fragment $dbChangeFragment, UserGroup $userGroup, $loadFromFile = false)
+	{
 
 		$contentTemplate = $loadFromFile ? $dbChangeFragment->getTemplateContentFromFile() : $dbChangeFragment->getTemplateContent();
 		$contentTemplate = $this->replacePlaceholders($environment, $contentTemplate);
 
 		$chunks = [];
 
-		$chunks[] = sprintf('-- DbChange: %1$s, Index: %2$s, User: %3$s, Group: %4$s%5$s', $dbChangeFragment->getDbChange()->getCode(), Util::getFragmentIndex($dbChangeFragment->getIndex()), $userGroup->getUser()->getName(), $dbChangeFragment->getGroup()->getName(), $loadFromFile ? '' : ', ID: '.Util::getFragmentId($dbChangeFragment->getId()));
+		$chunks[] = sprintf(
+			'-- DbChange: %1$s, Index: %2$s, User: %3$s, Group: %4$s%5$s',
+			$dbChangeFragment->getDbChange()->getCode(),
+			Util::getFragmentIndex($dbChangeFragment->getIndex()),
+			$userGroup->getUser()->getName(),
+			$dbChangeFragment->getGroup()->getName(),
+			$loadFromFile ? '' : ', ID: ' . Util::getFragmentId($dbChangeFragment->getId())
+		);
 
-		$chunks[] = $this->addStatementIntoStack($this->database->getChangeUserSql($userGroup->getUser()->getName()));
+		$chunks[] = $this->database->getChangeUserSql($userGroup->getUser()->getName()) . $this->parser->getDelimiter();
 		//$this->parser->applyOnEachStatement($contentTemplate, [$this, 'replaceGroupPlaceholders']);
-		$statements = $this->parser->getStatements($contentTemplate);
+		$statements = $this->parser->parseContent($contentTemplate);
 
-		foreach($statements as $statement) {
-			$newChunks = $this->replaceGroupPlaceholders($environment, $statement);
-			foreach($newChunks as $newChunk) {
-				$chunks[] = $this->addStatementIntoStack($newChunk);
+		foreach ($statements as $statement) {
+			$newChunks = $this->replaceGroupPlaceholders($environment, $statement->getContent());
+			foreach ($newChunks as $newChunk) {
+				$chunks[] = sprintf('%s%s', $newChunk, $statement->getDelimiter());
 			}
 		}
-		$chunks[] = $this->addStatementIntoStack('COMMIT');
+		$chunks[] = 'COMMIT' . $this->parser->getDelimiter();
 		$chunks[] = '';
 
-
 		return implode("\n", $chunks);
-	}
-
-	private function addStatementIntoStack($statement) {
-		return $statement.$this->parser->getDelimiter();
 	}
 
 	/**
@@ -192,34 +218,74 @@ class Generator implements IGenerator
 	 *
 	 * @return string
 	 */
-	private function replacePlaceholders(Environment $environment, $content) {
+	private function replacePlaceholders(Environment $environment, $content)
+	{
 		$codes = [];
 		$values = [];
-		foreach($environment->getPlaceholders() as $placeholder) {
+		foreach ($environment->getPlaceholders() as $placeholder) {
 			$codes[] = $placeholder->getCode();
 			$values[] = $placeholder->getTranslatedValue();
 		}
+
 		return str_replace($codes, $values, $content);
 	}
 
 	/**
 	 * @param \Kapcus\DbChanger\Entity\Environment $environment
-	 * @param string $statement
+	 * @param string $content
 	 *
 	 * @return string[]
 	 */
-	private function replaceGroupPlaceholders(Environment $environment, $statement) {
+	private function replaceGroupPlaceholders(Environment $environment, $content)
+	{
 		$newStatements = [];
-		foreach ($environment->getGroupNames() as $groupName) {
-			if (strpos($statement, $this->getGroupPlaceholder($groupName)) !== false) {
-				foreach (Util::getUserGroupUsersByGroupName($environment->getUserGroups(), $groupName) as $user) {
-					$newStatements[] = str_replace($this->getGroupPlaceholder($groupName), $user->getName(), $statement);
-				}
-				return $newStatements;
+		$startIndex = 0;
+		$subStringLength = null;
+		$multiLineMode = true;
+
+		$startPlaceholderIndex = strpos($content, self::PLACEHOLDER_START);
+		if ($startPlaceholderIndex !== false) {
+			$multiLineMode = false;
+			$startIndex = $startPlaceholderIndex + strlen(self::PLACEHOLDER_START);
+			$endPlaceholderIndex = strpos($content, self::PLACEHOLDER_END);
+			if ($endPlaceholderIndex !== false) {
+				$subStringLength = $endPlaceholderIndex - $startIndex;
 			}
 		}
 
-		$newStatements[] = $statement;
+		foreach ($environment->getGroupNames() as $groupName) {
+			if (strpos($content, $this->getGroupPlaceholder($groupName)) !== false) {
+				foreach (Util::getUserGroupUsersByGroupName($environment->getUserGroups(), $groupName) as $user) {
+					$newStatements[] = str_replace(
+						$this->getGroupPlaceholder($groupName),
+						$user->getName(),
+						substr($content, $startIndex, $subStringLength)
+					);
+				}
+				if ($multiLineMode) {
+					return $newStatements;
+				} else {
+					$glueStartPlaceholderIndex = strpos($content, self::PLACEHOLDER_GLUE_START);
+					$endIndex = $endPlaceholderIndex + strlen(self::PLACEHOLDER_END);
+					$glue = '';
+					if ($glueStartPlaceholderIndex !== false) {
+						$glueEndPlaceholderIndex = strpos($content, self::PLACEHOLDER_GLUE_END, $glueStartPlaceholderIndex);
+						$endIndex = $glueEndPlaceholderIndex + strlen(self::PLACEHOLDER_GLUE_END);
+						$glue = substr(
+							$content,
+							$glueStartPlaceholderIndex + strlen(self::PLACEHOLDER_GLUE_START),
+							$glueEndPlaceholderIndex - $glueStartPlaceholderIndex - strlen(self::PLACEHOLDER_GLUE_START)
+						);
+					}
+					$beginning = substr($content, 0, $startPlaceholderIndex);
+					$end = substr($content, $endIndex);
+
+					return [sprintf("%s %s %s", $beginning, implode($glue, $newStatements), $end)];
+				}
+			}
+		}
+
+		$newStatements[] = $content;
 
 		return $newStatements;
 	}
@@ -229,7 +295,8 @@ class Generator implements IGenerator
 	 *
 	 * @return string
 	 */
-	private function getGroupPlaceholder($groupName) {
+	private function getGroupPlaceholder($groupName)
+	{
 		return sprintf('<%s>', $groupName);
 	}
 
@@ -249,5 +316,11 @@ class Generator implements IGenerator
 		$this->outputDirectory = $outputDirectory;
 	}
 
-
+	/**
+	 * @return void
+	 */
+	public function enableDebug()
+	{
+		$this->isDebug = true;
+	}
 }

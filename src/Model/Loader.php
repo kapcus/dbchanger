@@ -2,7 +2,10 @@
 
 namespace Kapcus\DbChanger\Model;
 
+use Kapcus\DbChanger\Entity\DbChange;
 use Kapcus\DbChanger\Entity\Environment;
+use Kapcus\DbChanger\Entity\Fragment;
+use Kapcus\DbChanger\Entity\Requirement;
 use Kapcus\DbChanger\Model\Exception\DbChangeException;
 use Nette\Utils\Finder;
 
@@ -22,6 +25,8 @@ class Loader implements ILoader
 	 * @var string
 	 */
 	private $filenameMask = '*.sql';
+
+	private $metaFileMask = '_requirements.txt';
 
 	/**
 	 * @var string
@@ -82,15 +87,16 @@ class Loader implements ILoader
 		foreach (Finder::findFiles(sprintf('%s%s', $this->filePrefix, $this->filenameMask))->in($dbChangeDirectory->getPathname()) as $file) {
 			if (!isset($dbChange)) {
 				$dbChangeCode = str_replace(['_', '.'], '', $dbChangeDirectory->getFilename());
-				$dbChange = new \Kapcus\DbChanger\Entity\DbChange();
+				$dbChange = new DbChange();
 				$dbChange->setCode(strtoupper($dbChangeCode));
+				$this->loadRequiredDbChanges($dbChangeDirectory->getPathname(), $dbChange);
 			}
 			$filePart = substr($file->getFilename(), strlen($this->filePrefix));
 			$fragmentIndex = intval(substr($filePart, 0, strpos($filePart, '_')));
 			$startIndex = strrpos($file->getFilename(), '_')+1;
 			$dbChangeGroupName = substr($file->getFilename(), $startIndex, strpos($file->getFilename(), '.sql')-$startIndex);
 			if (($foundGroup = Util::getGroupByName($groups, $dbChangeGroupName)) !== null) {
-				$fragment = new \Kapcus\DbChanger\Entity\Fragment();
+				$fragment = new Fragment();
 				$fragment->setGroup($foundGroup);
 				$fragment->setDbChange($dbChange);
 				$fragment->setFilename($file->getFilename());
@@ -99,10 +105,22 @@ class Loader implements ILoader
 				$dbChange->addFragment($fragment);
 			}
 		}
-		if ($dbChange instanceof \Kapcus\DbChanger\Entity\DbChange && $dbChange->hasFragment()) {
+		if ($dbChange instanceof DbChange && $dbChange->hasFragment()) {
 			return $dbChange;
 		}
 		return null;
+	}
+
+	private function loadRequiredDbChanges($directoryPath, DbChange $dbChange) {
+		if (!is_file($directoryPath.DIRECTORY_SEPARATOR.$this->metaFileMask)) {
+			return $dbChange;
+		}
+		$lines = file($directoryPath.DIRECTORY_SEPARATOR.$this->metaFileMask);
+		foreach($lines as $line) {
+			$requiredDbChange = new DbChange();
+			$requiredDbChange->setCode(strtoupper(trim($line)));
+			$dbChange->addReqDbChanges($requiredDbChange);
+		}
 	}
 
 	/**

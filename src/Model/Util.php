@@ -118,20 +118,6 @@ class Util
 	}
 
 	/**
-	 * @param $fragmentFullCode
-	 *
-	 * @return array
-	 */
-	public static function getFullCodeParts($fragmentFullCode)
-	{
-		return explode(self::FULL_CODE_SEPARATOR, $fragmentFullCode);
-	}
-
-	public static function getFullCode($environmentCode, $dbChangeCode, $fragmentIndex, $userName) {
-		return sprintf('%2$s%1$s%3$s%1$s%4$s%1$s%5$s', self::FULL_CODE_SEPARATOR, $environmentCode, $dbChangeCode, $fragmentIndex, $userName);
-	}
-
-	/**
 	 * @param int $id
 	 *
 	 * @return string

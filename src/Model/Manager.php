@@ -12,6 +12,7 @@ use Kapcus\DbChanger\Entity\Installation;
 use Kapcus\DbChanger\Entity\InstallationLog;
 use Kapcus\DbChanger\Entity\InstalledFragment;
 use Kapcus\DbChanger\Entity\Placeholder;
+use Kapcus\DbChanger\Entity\Requirement;
 use Kapcus\DbChanger\Entity\User;
 use Kapcus\DbChanger\Entity\UserGroup;
 use Kapcus\DbChanger\Model\Exception\ConnectionException;
@@ -89,12 +90,18 @@ class Manager
 	 */
 	public function registerDbChange(DbChange $dbChange)
 	{
-		$existingDbChange = $this->entityManager->getRepository(DbChange::class)->findOneBy(
-			['code' => $dbChange->getCode()]
-		);
+		$existingDbChange = $this->getDbChangeByCodeIfExists($dbChange->getCode());
 		if ($existingDbChange == null) {
 			$dbChange->loadFragmentTemplateContent();
 			$this->entityManager->persist($dbChange);
+			foreach($dbChange->getReqDbChanges() as $requiredDbChange) {
+				$existingRequiredDbChange = $this->getDbChangeByCode($requiredDbChange->getCode());
+				$requirement = new Requirement();
+				$requirement->setMasterChange($dbChange);
+				$requirement->setRequiredDbChange($existingRequiredDbChange);
+				$this->entityManager->persist($requirement);
+				$dbChange->addRequiredDbChange($requirement);
+			}
 		} else {
 			if (!$this->isEqualDbChanges($dbChange, $existingDbChange)) {
 				throw new DbChangeException(sprintf('User %s is out of sync.', $dbChange->getCode()));
@@ -190,6 +197,17 @@ class Manager
 		return $this->entityManager->getRepository(Installation::class)->findOneBy($whereCondition);
 	}
 
+	public function getInstalledInstallation(Environment $environment, DbChange $dbChange) {
+
+		$whereCondition = [
+			'environment' => $environment->getId(),
+			'dbChange' => $dbChange->getId(),
+			'status' => InstalledFragment::STATUS_INSTALLED
+		];
+
+		return $this->entityManager->getRepository(Installation::class)->findOneBy($whereCondition);
+	}
+
 	/**
 	 * @param \Kapcus\DbChanger\Entity\Environment $environment
 	 * @param \Kapcus\DbChanger\Entity\DbChange $dbChange
@@ -260,6 +278,16 @@ class Manager
 		}
 
 		try {
+			foreach($dbChange->getRequiredDbChanges() as $requiredDbChange) {
+				$reqDbChangeInstallation = $this->getInstalledInstallation($environment, $requiredDbChange->getRequiredDbChange());
+				if ($reqDbChangeInstallation == null) {
+					throw new InstallationException(
+						sprintf(
+							'Required DbChange %s is not installed. Install it first.', $requiredDbChange->getRequiredDbChange()->getCode()
+						)
+					);
+				}
+			}
 			$fragmentsForInstallation = $this->getInstallationFragmentsByStatus(
 				$installation,
 				[InstalledFragment::STATUS_NEW, InstalledFragment::STATUS_PENDING]
@@ -319,15 +347,6 @@ class Manager
 		$installationFragment = $this->getInstallationFragmentById($fragmentId);
 		if ($installationFragment == null) {
 			throw new DbChangeException(sprintf('Installation fragment with given id %s not found.', $fragmentId));
-		}
-		$this->markFragment($installationFragment, $statusShortcut);
-	}
-
-	public function markFragmentByFullCode($fragmentFullCode, $statusShortcut)
-	{
-		$installationFragment = $this->getInstallationFragmentByFullCode($fragmentFullCode);
-		if ($installationFragment == null) {
-			throw new DbChangeException(sprintf('Installation fragment with given full code %s not found.', $fragmentFullCode));
 		}
 		$this->markFragment($installationFragment, $statusShortcut);
 	}
@@ -458,33 +477,6 @@ class Manager
 	public function getInstallationFragmentById($id)
 	{
 		return $this->entityManager->getRepository(InstalledFragment::class)->find($id);
-	}
-
-	/**
-	 * @param $fragmentFullCode
-	 *
-	 * @return \Kapcus\DbChanger\Entity\InstalledFragment|null
-	 * @throws \Kapcus\DbChanger\Model\Exception\DbChangeException
-	 * @throws \Kapcus\DbChanger\Model\Exception\EnvironmentException
-	 */
-	private function getInstallationFragmentByFullCode($fragmentFullCode)
-	{
-		if (!Util::isFragmentId($fragmentFullCode)) {
-			throw new DbChangeException(sprintf('Given full code %s is not valid.'));
-		}
-		list($environmentCode, $dbChangeCode, $fragmentIndex, $userName) = Util::getFullCodeParts($fragmentFullCode);
-		$environment = $this->getEnvironmentByCode($environmentCode);
-		$dbChange = $this->getDbChangeByCode($dbChangeCode);
-		$installation = $this->getInstallation($environment, $dbChange, true);
-		if ($installation == null) {
-			throw new DbChangeException(sprintf('Given user %s is not valid for environment %s.', $userName, $environmentCode));
-		}
-		$user = $environment->getUserByName($userName);
-		if ($user == null) {
-			throw new DbChangeException(sprintf('Given user %s is not valid for environment %s.', $userName, $environmentCode));
-		}
-
-		return $this->getInstallationFragment($installation, $dbChange->getFragmentByIndex($fragmentIndex), $environment->getUserByName($userName));
 	}
 
 	/**

@@ -10,13 +10,20 @@ interface IParser
 	/**
 	 * @param string $sqlContent
 	 *
-	 * @return string[]
+	 * @return \Kapcus\DbChanger\Model\ParsedStatement[]
 	 */
-	function getStatements($sqlContent);
+	function parseContent($sqlContent);
 
 	/**
 	 * @return string
 	 */
 	function getDelimiter();
+
+	/**
+	 * @param \Kapcus\DbChanger\Model\IParsingRule $rule
+	 *
+	 * @return void
+	 */
+	function addRule(IParsingRule $rule);
 
 }

@@ -4,6 +4,7 @@ namespace Kapcus\DbChanger\Model;
 
 use Dibi\Connection;
 use Dibi\Exception;
+use Doctrine\Common\Util\Debug;
 use Kapcus\DbChanger\Model\Exception\ConnectionException;
 use Kapcus\DbChanger\Model\Exception\ExecutionException;
 
@@ -73,9 +74,9 @@ class DibiExecutor implements IExecutor
 	 */
 	public function executeContent($sqlContent)
 	{
-		$statements = $this->parser->getStatements($sqlContent);
+		$statements = $this->parser->parseContent($sqlContent);
 		foreach($statements as $statement) {
-			$this->runQuery($statement);
+			$this->runQuery($statement->getContent());
 		}
 		//$this->parser->applyOnEachStatement($sqlContent, [$this, 'runQuery']);
 	}
