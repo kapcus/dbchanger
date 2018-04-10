@@ -178,6 +178,10 @@ For this purpose, see `/*START*/`, `/*END*/`, `/*GLUE_START` and `GLUE_END*/` us
 
 TODO
 ---------
+* add comments into source code
+* Check command - check all connections, check all sequences
+
 * Reinit command - when environment, group, user is changed/added/removed, reflect this change
 * Register command - add update support when dbChange/fragment is changed
 * Rollback command - add support for inverse dbChange and implement dbChange roll back
+* List command - list all dbchange which can be registered

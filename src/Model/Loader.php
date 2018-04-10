@@ -86,7 +86,7 @@ class Loader implements ILoader
 		$dbChange = null;
 		foreach (Finder::findFiles(sprintf('%s%s', $this->filePrefix, $this->filenameMask))->in($dbChangeDirectory->getPathname()) as $file) {
 			if (!isset($dbChange)) {
-				$dbChangeCode = str_replace(['_', '.'], '', $dbChangeDirectory->getFilename());
+				$dbChangeCode = $dbChangeDirectory->getFilename();
 				$dbChange = new DbChange();
 				$dbChange->setCode(strtoupper($dbChangeCode));
 				$this->loadRequiredDbChanges($dbChangeDirectory->getPathname(), $dbChange);

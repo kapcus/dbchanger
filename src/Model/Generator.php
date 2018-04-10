@@ -201,7 +201,7 @@ class Generator implements IGenerator
 		$statements = $this->parser->parseContent($contentTemplate);
 
 		foreach ($statements as $statement) {
-			$newChunks = $this->replaceGroupPlaceholders($environment, $statement->getContent());
+			$newChunks = $this->replaceGroupPlaceholder($environment, $statement->getContent());
 			foreach ($newChunks as $newChunk) {
 				$chunks[] = sprintf('%s%s', $newChunk, $statement->getDelimiter());
 			}
@@ -232,62 +232,89 @@ class Generator implements IGenerator
 
 	/**
 	 * @param \Kapcus\DbChanger\Entity\Environment $environment
-	 * @param string $content
+	 * @param string $statementContent
 	 *
 	 * @return string[]
 	 */
-	private function replaceGroupPlaceholders(Environment $environment, $content)
+	private function replaceGroupPlaceholder(Environment $environment, $statementContent)
 	{
-		$newStatements = [];
-		$startIndex = 0;
-		$subStringLength = null;
-		$multiLineMode = true;
-
-		$startPlaceholderIndex = strpos($content, self::PLACEHOLDER_START);
-		if ($startPlaceholderIndex !== false) {
-			$multiLineMode = false;
-			$startIndex = $startPlaceholderIndex + strlen(self::PLACEHOLDER_START);
-			$endPlaceholderIndex = strpos($content, self::PLACEHOLDER_END);
-			if ($endPlaceholderIndex !== false) {
-				$subStringLength = $endPlaceholderIndex - $startIndex;
-			}
+		if (strpos($statementContent, self::PLACEHOLDER_START) !== false) {
+			return $this->replaceGroupPlaceholderInSubstring($environment, $statementContent);
+		} else {
+			return $this->replaceGroupPlaceholderGlobally($environment, $statementContent);
 		}
+	}
 
+	/**
+	 * @param \Kapcus\DbChanger\Entity\Environment $environment
+	 * @param $statementContent
+	 *
+	 * @return string[]
+	 */
+	private function replaceGroupPlaceholderGlobally(Environment $environment, $statementContent) {
+		$newStatements = [];
 		foreach ($environment->getGroupNames() as $groupName) {
-			if (strpos($content, $this->getGroupPlaceholder($groupName)) !== false) {
+			if (strpos($statementContent, $this->getGroupPlaceholder($groupName)) !== false) {
 				foreach (Util::getUserGroupUsersByGroupName($environment->getUserGroups(), $groupName) as $user) {
 					$newStatements[] = str_replace(
 						$this->getGroupPlaceholder($groupName),
 						$user->getName(),
-						substr($content, $startIndex, $subStringLength)
+						$statementContent
 					);
 				}
-				if ($multiLineMode) {
-					return $newStatements;
-				} else {
-					$glueStartPlaceholderIndex = strpos($content, self::PLACEHOLDER_GLUE_START);
-					$endIndex = $endPlaceholderIndex + strlen(self::PLACEHOLDER_END);
-					$glue = '';
-					if ($glueStartPlaceholderIndex !== false) {
-						$glueEndPlaceholderIndex = strpos($content, self::PLACEHOLDER_GLUE_END, $glueStartPlaceholderIndex);
-						$endIndex = $glueEndPlaceholderIndex + strlen(self::PLACEHOLDER_GLUE_END);
-						$glue = substr(
-							$content,
-							$glueStartPlaceholderIndex + strlen(self::PLACEHOLDER_GLUE_START),
-							$glueEndPlaceholderIndex - $glueStartPlaceholderIndex - strlen(self::PLACEHOLDER_GLUE_START)
-						);
-					}
-					$beginning = substr($content, 0, $startPlaceholderIndex);
-					$end = substr($content, $endIndex);
+				return $newStatements;
+			}
+		}
+		return [$statementContent];
+	}
 
-					return [sprintf("%s %s %s", $beginning, implode($glue, $newStatements), $end)];
+	/**
+	 * @param \Kapcus\DbChanger\Entity\Environment $environment
+	 * @param $statementContent
+	 *
+	 * @return string[]
+	 */
+	private function replaceGroupPlaceholderInSubstring(Environment $environment, $statementContent) {
+		$startPlaceholderIndex = strpos($statementContent, self::PLACEHOLDER_START);
+		$newStatements = [];
+		$subStringLength = null;
+
+		$startIndex = $startPlaceholderIndex + strlen(self::PLACEHOLDER_START);
+		$endPlaceholderIndex = strpos($statementContent, self::PLACEHOLDER_END);
+		if ($endPlaceholderIndex !== false) {
+			$subStringLength = $endPlaceholderIndex - $startIndex;
+		}
+
+		foreach ($environment->getGroupNames() as $groupName) {
+			if (strpos($statementContent, $this->getGroupPlaceholder($groupName)) !== false) {
+				foreach (Util::getUserGroupUsersByGroupName($environment->getUserGroups(), $groupName) as $user) {
+					$newStatements[] = str_replace(
+						$this->getGroupPlaceholder($groupName),
+						$user->getName(),
+						substr($statementContent, $startIndex, $subStringLength)
+					);
 				}
+
+				$glueStartPlaceholderIndex = strpos($statementContent, self::PLACEHOLDER_GLUE_START);
+				$endIndex = $endPlaceholderIndex + strlen(self::PLACEHOLDER_END);
+				$glue = '';
+				if ($glueStartPlaceholderIndex !== false) {
+					$glueEndPlaceholderIndex = strpos($statementContent, self::PLACEHOLDER_GLUE_END, $glueStartPlaceholderIndex);
+					$endIndex = $glueEndPlaceholderIndex + strlen(self::PLACEHOLDER_GLUE_END);
+					$glue = substr(
+						$statementContent,
+						$glueStartPlaceholderIndex + strlen(self::PLACEHOLDER_GLUE_START),
+						$glueEndPlaceholderIndex - $glueStartPlaceholderIndex - strlen(self::PLACEHOLDER_GLUE_START)
+					);
+				}
+				$beginning = substr($statementContent, 0, $startPlaceholderIndex);
+				$end = substr($statementContent, $endIndex);
+
+				return [sprintf("%s %s %s", $beginning, implode($glue, $newStatements), $end)];
 			}
 		}
 
-		$newStatements[] = $content;
-
-		return $newStatements;
+		return [$statementContent];
 	}
 
 	/**

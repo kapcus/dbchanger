@@ -655,6 +655,7 @@ class Manager
 		if (!$schemaManager->tablesExist(
 				[
 					$this->entityManager->getClassMetadata(DbChange::class)->getTableName(),
+					$this->entityManager->getClassMetadata(Requirement::class)->getTableName(),
 					$this->entityManager->getClassMetadata(Environment::class)->getTableName(),
 					$this->entityManager->getClassMetadata(Fragment::class)->getTableName(),
 					$this->entityManager->getClassMetadata(Group::class)->getTableName(),
