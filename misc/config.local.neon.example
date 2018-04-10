@@ -1,69 +1,76 @@
 parameters:
-    dbchanger:
-        # database connection data for dbchanger running instance, mandatory (individual database parameters by driver spec)
-        database:
-        	driver: oci8
-        	host: localhost
-        	user: DBCHANGERUSER
-        	password: ''
-        	servicename: DBCHANGERDBINSTANCE
-        	dbname: DBCHANGESCHEMA
-        	port: 1521
+	dbchanger:
+		# database connection data for dbchanger running instance, mandatory (individual database parameters by driver spec)
+		database:
+			driver: oci8
+			host: localhost
+			user: DBCHANGERUSER
+			password: ''
+			servicename: DBCHANGERDBINSTANCE
+			dbname: DBCHANGESCHEMA
+			port: 1521
 
-        # folder where dbchange files are located
-        inputDirectory: 'misc\sampledata\'
+		# folder where dbchange files are located
+		inputDirectory: 'misc\sampledata\'
 
-        # folder into which dbchange content should be generated into
-        outputDirectory: 'output'
+		# folder into which dbchange content should be generated into
+		outputDirectory: 'output'
 
-        # folder for logs and exceptions
-        logDirectory: 'log'
+		# folder for logs and exceptions
+		logDirectory: 'log'
 
-        # in case dbchange files have some prefix, e.g. when dbchange_01_group.sql = you need to define prefix dbchange_
-        filePrefix: ''
+		# in case dbchange files have some prefix, e.g. when dbchange_01_group.sql = you need to define prefix dbchange_
+		filePrefix: ''
 
-        # in this section environments are defined
-        datamodel:
+		# in this section environments are defined
+		datamodel:
 
-            # list of all defined groups, mandatory and must be filled
-            groups: [central, region, home, operations]
+			# list of all defined groups, mandatory and must be filled
+			groups: [central, region, home, operations]
 
-            # which groups should be treated as manual ones (sql content in such fragments is not executed during installation and require manual interaction), optional
-            manualGroups: [operations]
+			# which groups should be treated as manual ones (sql content in such fragments is not executed during installation and require manual interaction), optional
+			manualGroups: [operations]
 
-            # environment definitions, mandatory
-            environments:
+			# environment definitions, mandatory
+			environments:
 
-                # each environment must have 3-letter code, mandatory
-                ENV:
+				# each environment must have 3-letter code, mandatory
+				ENV:
 
-                    # environment name, mandatory
-                    name: XXXXXXX
+					# environment name, mandatory
+					name: XXXXXXX
 
-                    # environment description, optional
-                    description: XXXXXXX Environment
+					# environment description, optional
+					description: XXXXXXX Environment
 
-                    # hostname where database is running, mandatory
-                    hostname: ''
+					# hostname where database is running, mandatory
+					hostname: ''
 
-                    # database name (instance name, service name), mandatory
-                    dbname: XXXDB
+					# database name (instance name, service name), mandatory
+					dbname: XXXDB
 
-                    # database port, mandatory
-                    port: 1521
+					# database port, mandatory
+					port: 1521
 
-                    # database users and their passwords, see this example, mandatory
-                    users:
-                        'MAINUSER' : ''
-                        'SLAVEUSER1' : ''
-                        'SLAVEUSER2' : ''
+					# OPTION 1 = define users
+					# database users and their passwords, see this example, (mandatory in case of option 1, omit in case of option 2)
+					users:
+						'MAINUSER' : ''
+						'SLAVEUSER1' : ''
+						'SLAVEUSER2' : ''
 
-                    # database groups with assigned users, see this example, mandatory
-                    groups:
-                        central: [MAINUSER]
-                        region: [SLAVEUSER1, SLAVEUSER2]
+					# or OPTION 2 = define usernames and passwords (order of values is important, length of arrays must equal)
+					# database user names (mandatory in case of option 2, omit in case of option 1)
+					usernames: ['MAINUSER', 'SLAVEUSER1', 'SLAVEUSER2']
+					# database user passwords (mandatory in case of option 2, omit in case of option 1)
+                    passwords: ['', '', '']
 
-                    # placeholders used in dbchange fragment sql content, see this example, optional
-                    placeholders:
-                        '<ruser>': READERUSER
-                        '<systemuser>': SYSTEMUSER
+					# database groups with assigned users, see this example, mandatory
+					groups:
+						central: [MAINUSER]
+						region: [SLAVEUSER1, SLAVEUSER2]
+
+					# placeholders used in dbchange fragment sql content, see this example, optional
+					placeholders:
+						'<ruser>': READERUSER
+						'<systemuser>': SYSTEMUSER

@@ -40,7 +40,8 @@ class Configurator implements IConfigurator
 	/**
 	 * @throws \Kapcus\DbChanger\Model\Exception\ConfigurationException
 	 */
-	public function setup() {
+	public function setup()
+	{
 		if ($this->isSetup()) {
 			return;
 		}
@@ -66,6 +67,7 @@ class Configurator implements IConfigurator
 	public function getEnvironments()
 	{
 		$this->setup();
+
 		return $this->environments;
 	}
 
@@ -84,6 +86,7 @@ class Configurator implements IConfigurator
 	public function getGroups()
 	{
 		$this->setup();
+
 		return $this->groups;
 	}
 
@@ -111,6 +114,7 @@ class Configurator implements IConfigurator
 	public function getGroupNames()
 	{
 		$this->setup();
+
 		return $this->groupNames;
 	}
 
@@ -131,7 +135,7 @@ class Configurator implements IConfigurator
 		foreach ($groupNames as $groupName) {
 			$group = new Group();
 			$group->setName($groupName);
-			$group->setIsManual((int) in_array($groupName, $manualGroups));
+			$group->setIsManual((int)in_array($groupName, $manualGroups));
 			$this->addGroup($group);
 		}
 	}
@@ -148,8 +152,41 @@ class Configurator implements IConfigurator
 		}
 	}
 
-	private function checkMandatoryEnvironmentField($data, $fieldName, $isArray = false)
+	/**
+	 *
+	 * @param $data
+	 * @param \Kapcus\DbChanger\Entity\Environment $environment
+	 */
+	private function configureUsers($data, Environment $environment)
 	{
+		if (isset($data['users']) && is_array($data['users']) && !empty($data['users'])) {
+			foreach ($data['users'] as $username => $password) {
+				$user = new User();
+				$user->setName($username);
+				$user->setPassword($password);
+				$user->setEnvironment($environment);
+				$environment->addUser($user);
+			}
+		} elseif (isset($data['usernames']) && is_array($data['usernames']) && !empty($data['usernames']) && isset($data['passwords']) && is_array(
+				$data['passwords']
+			) && count($data['passwords']) == count($data['usernames'])) {
+			foreach (array_combine($data['usernames'], $data['passwords']) as $username => $password) {
+				$user = new User();
+				$user->setName($username);
+				$user->setPassword($password);
+				$user->setEnvironment($environment);
+				$environment->addUser($user);
+			}
+		} else {
+			throw new ConfigurationException(sprintf('Either configuration environment item \'users\' or item pair \'usernames\' and \'passwords\' is expected to be set.'));
+		}
+	}
+
+	private function checkMandatoryEnvironmentField(
+		$data,
+		$fieldName,
+		$isArray = false
+	) {
 		if (!isset($data[$fieldName]) || ($isArray && empty($isArray))) {
 			throw new ConfigurationException(sprintf('Configuration environment item \'%s\' is expected to be set.', $fieldName));
 		}
@@ -161,7 +198,11 @@ class Configurator implements IConfigurator
 	 *
 	 * @throws \Kapcus\DbChanger\Model\Exception\ConfigurationException
 	 */
-	private function configureEnvironment($environmentCode, $envData) {
+	private
+	function configureEnvironment(
+		$environmentCode,
+		$envData
+	) {
 		$environment = new Environment();
 		$environment->setCode($environmentCode);
 		$this->checkMandatoryEnvironmentField($envData, 'name');
@@ -175,14 +216,8 @@ class Configurator implements IConfigurator
 		$environment->setDatabaseName($envData['dbname']);
 		$this->checkMandatoryEnvironmentField($envData, 'hostname');
 		$environment->setHost($envData['hostname']);
-		$this->checkMandatoryEnvironmentField($envData, 'users', true);
-		foreach ($envData['users'] as $username => $password) {
-			$user = new User();
-			$user->setName($username);
-			$user->setPassword($password);
-			$user->setEnvironment($environment);
-			$environment->addUser($user);
-		}
+		//$this->checkMandatoryEnvironmentField($envData, 'users', true);
+		$this->configureUsers($envData, $environment);
 
 		if (isset($envData['placeholders']) && is_array($envData['placeholders'])) {
 			foreach ($envData['placeholders'] as $placeholderCode => $value) {
@@ -199,14 +234,23 @@ class Configurator implements IConfigurator
 			$group = Util::getGroupByName($this->getGroupsForConfiguration(), $groupName);
 			if ($group == null) {
 				throw new ConfigurationException(
-					sprintf('Invalid group %s defined in configuration for environment %s - check if group is defined in \'groups\'.', $groupName, $environment->getName())
+					sprintf(
+						'Invalid group %s defined in configuration for environment %s - check if group is defined in \'groups\'.',
+						$groupName,
+						$environment->getName()
+					)
 				);
 			}
 			foreach ($userNames as $userName) {
 				$user = $environment->getUserByName($userName);
 				if ($user == null) {
 					throw new ConfigurationException(
-						sprintf('Undefined user %s in group %s specified in environment %s. Add user into users section first.', $userName, $groupName, $environment->getName())
+						sprintf(
+							'Undefined user %s in group %s specified in environment %s. Add user into users section first.',
+							$userName,
+							$groupName,
+							$environment->getName()
+						)
 					);
 				}
 				$userGroup = $environment->getUserGroup($groupName, $userName);
@@ -228,7 +272,10 @@ class Configurator implements IConfigurator
 	 * @return array
 	 * @throws \Kapcus\DbChanger\Model\Exception\ConfigurationException
 	 */
-	public function getEnvironmentConnectionConfigurations($environmentCode) {
+	public
+	function getEnvironmentConnectionConfigurations(
+		$environmentCode
+	) {
 		$this->setup();
 		$environment = Util::getEnvironmentByCode($this->getEnvironments(), $environmentCode);
 		if ($environment == null) {
@@ -237,7 +284,7 @@ class Configurator implements IConfigurator
 			);
 		}
 		$configurations = [];
-		foreach($environment->getUsers() as $user) {
+		foreach ($environment->getUsers() as $user) {
 			$configuration = new ConnectionConfiguration();
 			$configuration->setPort($environment->getPort());
 			$configuration->setUsername($user->getName());
@@ -254,7 +301,8 @@ class Configurator implements IConfigurator
 	/**
 	 * @return bool
 	 */
-	private function isSetup()
+	private
+	function isSetup()
 	{
 		return $this->isSetup;
 	}
@@ -262,10 +310,10 @@ class Configurator implements IConfigurator
 	/**
 	 * @param bool $isSetup
 	 */
-	private function setIsSetup($isSetup)
-	{
+	private
+	function setIsSetup(
+		$isSetup
+	) {
 		$this->isSetup = $isSetup;
 	}
-
-
 }
