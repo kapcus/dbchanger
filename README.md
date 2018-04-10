@@ -78,7 +78,7 @@ Installation
 composer require kapcus/dbchanger
 ```
 
-2] run [create_master_sql.sql](misc/create_master_sql.sql) in your database instance where DbChanger is to be installed.
+2] run sql scripts located in [build](build) folder. This will install DbChanger internal database tables.
 (you need to be able to create table, trigger, sequence, see [grants.sql](misc/grants.sql))
 
 3] Move [config.local.neon.example](misc/config.local.neon.example) into `dbchanger/config.local.neon` and setup dbchanger.database section (this is where database for central DbChanger logic will be running).
