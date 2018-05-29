@@ -108,10 +108,14 @@ DbChanger database. Now, environment is ready for dbChange deployments.
 3] Register dbChange (e.g. 12345) with
 ```
 php bin/console.php dbchanger:register 12345
+
+php bin/console.php dbchanger:register 12345 -d
 ```
 
 This command will load sql content of dbChange files into internal DbChanger database.
 Now, dbChange is ready to be installed on selected environment.
+In case -d is specified, all dependant DbChanges specified in file `_requirements.txt` are ignored. This is useful during development when
+developer needs to test one particular DbChanges and dependencies are not important.
 
 Source dbChange content is searched in `inputDirectory` specified in [config.neon](config/config.neon)
 

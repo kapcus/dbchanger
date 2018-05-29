@@ -85,22 +85,26 @@ class Manager
 	/**
 	 * @param \Kapcus\DbChanger\Entity\DbChange $dbChange
 	 *
+	 * @param bool $ignoreRequirements TRUE will completely ignore all dependant dbdchanges
+	 *
 	 * @throws \Doctrine\ORM\OptimisticLockException
 	 * @throws \Kapcus\DbChanger\Model\Exception\DbChangeException
 	 */
-	public function registerDbChange(DbChange $dbChange)
+	public function registerDbChange(DbChange $dbChange, $ignoreRequirements = false)
 	{
 		$existingDbChange = $this->getDbChangeByCodeIfExists($dbChange->getCode());
 		if ($existingDbChange == null) {
 			$dbChange->loadFragmentTemplateContent();
 			$this->entityManager->persist($dbChange);
-			foreach($dbChange->getReqDbChanges() as $requiredDbChange) {
-				$existingRequiredDbChange = $this->getDbChangeByCode($requiredDbChange->getCode());
-				$requirement = new Requirement();
-				$requirement->setMasterChange($dbChange);
-				$requirement->setRequiredDbChange($existingRequiredDbChange);
-				$this->entityManager->persist($requirement);
-				$dbChange->addRequiredDbChange($requirement);
+			if (!$ignoreRequirements) {
+				foreach ($dbChange->getReqDbChanges() as $requiredDbChange) {
+					$existingRequiredDbChange = $this->getDbChangeByCode($requiredDbChange->getCode());
+					$requirement = new Requirement();
+					$requirement->setMasterChange($dbChange);
+					$requirement->setRequiredDbChange($existingRequiredDbChange);
+					$this->entityManager->persist($requirement);
+					$dbChange->addRequiredDbChange($requirement);
+				}
 			}
 		} else {
 			if (!$this->isEqualDbChanges($dbChange, $existingDbChange)) {

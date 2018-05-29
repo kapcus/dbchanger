@@ -44,7 +44,8 @@ class RegisterCommand extends Command
 		$this
 			->setName('dbchanger:register')
 			->setDescription('Register DbChange and prepare it for further installation')
-			->addArgument('code', InputArgument::REQUIRED, 'DbChange code to be registered.');
+			->addArgument('code', InputArgument::REQUIRED, 'DbChange code to be registered.')
+			->addOption('debug', 'd', InputOption::VALUE_NONE, 'y');
 	}
 
 	protected function execute(InputInterface $input, OutputInterface $output)
@@ -53,7 +54,7 @@ class RegisterCommand extends Command
 
 		try {
 			$dbChange = $this->loader->loadDbChangeFromInputDirectory($this->manager->getGroups(), $dbChangeCode);
-			$this->manager->registerDbChange($dbChange);
+			$this->manager->registerDbChange($dbChange, $input->getOption('debug'));
 			$output->writeln(sprintf('DbChange %s successfully registered.', $dbChangeCode));
 		} catch (DbChangeException $e) {
 			$output->writeln($e->getMessage());

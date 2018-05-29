@@ -1,0 +1,1 @@
+-- queries here will be generated a prepared for manual run in central schema
