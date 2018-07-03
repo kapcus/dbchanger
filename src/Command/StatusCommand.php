@@ -65,10 +65,9 @@ class StatusCommand extends Command
 
 		try {
 			$environment = $this->manager->getEnvironmentByCode($environmentCode);
-			$dbChange = $this->manager->getDbChangeByCode($dbChangeCode);
 			$output->writeln('');
 			$output->writeln(sprintf('Installations for Environment %s and DbChange %s:', $environment->getCode(), $dbChangeCode));
-			$reportData = $this->manager->getDbChangeReport($environment, $dbChange);
+			$reportData = $this->manager->getDbChangeReport($environment, $dbChangeCode);
 			$this->displayTable($output, $reportData['installations']);
 			$output->writeln('');
 			$output->writeln('');

@@ -85,32 +85,40 @@ class Manager
 	/**
 	 * @param \Kapcus\DbChanger\Entity\DbChange $dbChange
 	 *
-	 * @param bool $ignoreRequirements TRUE will completely ignore all dependant dbdchanges
+	 * @param bool $ignoreRequirements TRUE will completely ignore all dependant dbCchanges
+	 * @param bool $overwriteExisting TRUE will overwrite existing dbChange with the same code if any
 	 *
 	 * @throws \Doctrine\ORM\OptimisticLockException
 	 * @throws \Kapcus\DbChanger\Model\Exception\DbChangeException
 	 */
-	public function registerDbChange(DbChange $dbChange, $ignoreRequirements = false)
+	public function registerDbChange(DbChange $dbChange, $ignoreRequirements = false, $overwriteExisting = false)
 	{
-		$existingDbChange = $this->getDbChangeByCodeIfExists($dbChange->getCode());
-		if ($existingDbChange == null) {
-			$dbChange->loadFragmentTemplateContent();
-			$this->entityManager->persist($dbChange);
-			if (!$ignoreRequirements) {
-				foreach ($dbChange->getReqDbChanges() as $requiredDbChange) {
-					$existingRequiredDbChange = $this->getDbChangeByCode($requiredDbChange->getCode());
-					$requirement = new Requirement();
-					$requirement->setMasterChange($dbChange);
-					$requirement->setRequiredDbChange($existingRequiredDbChange);
-					$this->entityManager->persist($requirement);
-					$dbChange->addRequiredDbChange($requirement);
+		$existingDbChange = $this->getActiveDbChangeByCodeIfExists($dbChange->getCode());
+		if ($existingDbChange != null) {
+			if (!$overwriteExisting) {
+				if (!$this->isEqualDbChanges($dbChange, $existingDbChange)) {
+					throw new DbChangeException(sprintf('User %s is out of sync.', $dbChange->getCode()));
+				} else {
+					throw new DbChangeException(sprintf('DbChange %s is already registered.', $dbChange->getCode()));
 				}
+			} elseif ($this->hasDbChangePendingInstallation($existingDbChange)) {
+				throw new DbChangeException(sprintf('DbChange %s has pending installations, deal with them first.', $dbChange->getCode()));
 			}
-		} else {
-			if (!$this->isEqualDbChanges($dbChange, $existingDbChange)) {
-				throw new DbChangeException(sprintf('User %s is out of sync.', $dbChange->getCode()));
-			} else {
-				throw new DbChangeException(sprintf('DbChange %s is already registered.', $dbChange->getCode()));
+			$dbChange->setVersionNumber($existingDbChange->getVersionNumber()+1);
+			$existingDbChange->setIsActive(false);
+			$this->entityManager->persist($existingDbChange);
+
+		}
+		$dbChange->loadFragmentTemplateContent();
+		$this->entityManager->persist($dbChange);
+		if (!$ignoreRequirements) {
+			foreach ($dbChange->getReqDbChanges() as $requiredDbChange) {
+				$existingRequiredDbChange = $this->getActiveDbChangeByCode($requiredDbChange->getCode());
+				$requirement = new Requirement();
+				$requirement->setMasterChange($dbChange);
+				$requirement->setRequiredDbChange($existingRequiredDbChange);
+				$this->entityManager->persist($requirement);
+				$dbChange->addRequiredDbChange($requirement);
 			}
 		}
 		$this->entityManager->flush();
@@ -196,9 +204,21 @@ class Manager
 	 */
 	public function getInstallation(Environment $environment, DbChange $dbChange, $activeOnly = false)
 	{
-		$whereCondition = $this->getInstallationWhereCondition($environment, $dbChange, $activeOnly);
+		$whereCondition = $this->getInstallationWhereCondition($dbChange, $environment->getId(), $activeOnly);
 
 		return $this->entityManager->getRepository(Installation::class)->findOneBy($whereCondition);
+	}
+
+	/**
+	 * @param \Kapcus\DbChanger\Entity\DbChange $dbChange
+	 *
+	 * @return bool
+	 */
+	public function hasDbChangePendingInstallation(DbChange $dbChange)
+	{
+		$whereCondition = $this->getInstallationWhereCondition($dbChange, null, true);
+
+		return $this->entityManager->getRepository(Installation::class)->findOneBy($whereCondition) !== null;
 	}
 
 	public function getInstalledInstallation(Environment $environment, DbChange $dbChange) {
@@ -222,24 +242,51 @@ class Manager
 	 */
 	public function getInstallations(Environment $environment, DbChange $dbChange, $activeOnly = false)
 	{
-		$whereCondition = $this->getInstallationWhereCondition($environment, $dbChange, $activeOnly);
+		$whereCondition = $this->getInstallationWhereCondition($dbChange, $environment->getId(), $activeOnly);
 
 		return $this->entityManager->getRepository(Installation::class)->findBy($whereCondition);
 	}
 
 	/**
 	 * @param \Kapcus\DbChanger\Entity\Environment $environment
+	 * @param string $dbChangeCode
+	 *
+	 * @return \Kapcus\DbChanger\Entity\Installation[]
+	 */
+	public function getInstallationsByDbChangeCode(Environment $environment, $dbChangeCode)
+	{
+		$query = $this->entityManager->createQuery('select 
+														  	i 
+														  from 
+															Kapcus\DbChanger\Entity\Installation i, 
+															Kapcus\DbChanger\Entity\DbChange d,
+															Kapcus\DbChanger\Entity\Environment e 
+														  WHERE
+															i.environment = e AND
+															i.dbChange = d AND
+															e.id = ?1 AND 
+															d.id IN (SELECT dd.id FROM Kapcus\DbChanger\Entity\DbChange dd WHERE dd.code = ?2) ORDER BY d.id ASC, i.id ASC');
+		$query->setParameter(1, $environment->getId());
+		$query->setParameter(2, $dbChangeCode);
+		return $query->getResult();
+	}
+
+	/**
 	 * @param \Kapcus\DbChanger\Entity\DbChange $dbChange
+	 * @param string|null $environmentCode
 	 * @param boolean $activeOnly
 	 *
 	 * @return array
 	 */
-	private function getInstallationWhereCondition(Environment $environment, DbChange $dbChange, $activeOnly)
+	private function getInstallationWhereCondition(DbChange $dbChange, $environmentCode, $activeOnly)
 	{
 		$whereCondition = [
-			'environment' => $environment->getId(),
 			'dbChange' => $dbChange->getId(),
 		];
+
+		if ($environmentCode !== null) {
+			$whereCondition['environment'] = $environmentCode;
+		}
 		if ($activeOnly) {
 			$whereCondition['status'] = InstalledFragment::getActiveStatuses();
 		}
@@ -602,9 +649,9 @@ class Manager
 	 * @return \Kapcus\DbChanger\Entity\DbChange
 	 * @throws \Kapcus\DbChanger\Model\Exception\DbChangeException
 	 */
-	public function getDbChangeByCode($dbChangeCode)
+	public function getActiveDbChangeByCode($dbChangeCode)
 	{
-		$result = $this->getDbChangeByCodeIfExists($dbChangeCode);
+		$result = $this->getActiveDbChangeByCodeIfExists($dbChangeCode);
 		if ($result == null) {
 			throw new DbChangeException(sprintf('DbChange with code %1$s has not been registered yet..', $dbChangeCode));
 		}
@@ -617,10 +664,11 @@ class Manager
 	 *
 	 * @return null|\Kapcus\DbChanger\Entity\DbChange
 	 */
-	public function getDbChangeByCodeIfExists($dbChangeCode)
+	public function getActiveDbChangeByCodeIfExists($dbChangeCode)
 	{
-		return $this->entityManager->getRepository(DbChange::class)->findOneBy(['code' => $dbChangeCode]);
+		return $this->entityManager->getRepository(DbChange::class)->findOneBy(['code' => $dbChangeCode, 'isActive' => 1]);
 	}
+
 
 	/**
 	 * @param \Kapcus\DbChanger\Entity\Environment $environment
@@ -704,25 +752,27 @@ class Manager
 
 	/**
 	 * @param \Kapcus\DbChanger\Entity\Environment $environment
-	 * @param \Kapcus\DbChanger\Entity\DbChange $dbChange
+	 * @param string $dbChangeCode
 	 *
 	 * @return array
 	 */
-	public function getDbChangeReport(Environment $environment, DbChange $dbChange)
+	public function getDbChangeReport(Environment $environment, $dbChangeCode)
 	{
 		$output = [];
 		$output['messages'] = [];
 		$activeInstallations = [];
-		$installations = $this->getInstallations($environment, $dbChange);
+		$installations = $this->getInstallationsByDbChangeCode($environment, $dbChangeCode);
 
 		$table = new Table();
 		$table->addColumn(new Column('ID', Column::TYPE_STRING, 8));
+		$table->addColumn(new Column('VERSION', Column::TYPE_STRING, 6));
 		$table->addColumn(new Column('STATUS', Column::TYPE_STRING, 15));
 		$table->addColumn(new Column('CREATED AT', Column::TYPE_STRING, 10));
 
 		foreach ($installations as $installation) {
 			$table->addRow();
 			$table->addField($installation->getId());
+			$table->addField($installation->getDbChange()->getVersionNumber());
 			$table->addField(InstalledFragment::getStatusName($installation->getStatus()));
 			$table->addField($installation->getCreatedAt());
 			if (in_array($installation->getStatus(), InstalledFragment::getActiveStatuses())) {

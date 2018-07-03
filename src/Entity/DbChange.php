@@ -31,6 +31,26 @@ class DbChange
 
 	/**
 	 *
+	 * @var \DateTime
+	 */
+	protected $registeredAt;
+
+	/**
+	 * @ORM\Column(type="integer", name="is_active")
+	 *
+	 * @var boolean
+	 */
+	protected $isActive = true;
+
+	/**
+	 * @ORM\Column(type="integer", name="version_number")
+	 *
+	 * @var int
+	 */
+	protected $versionNumber = 1;
+
+	/**
+	 *
 	 * @ORM\Column(type="string", nullable=true)
 	 *
 	 * @var string
@@ -224,6 +244,54 @@ class DbChange
 	public function addReqDbChanges(DbChange $reqDbChange)
 	{
 		$this->reqDbChanges[] = $reqDbChange;
+	}
+
+	/**
+	 * @return \DateTime
+	 */
+	public function getRegisteredAt()
+	{
+		return $this->registeredAt;
+	}
+
+	/**
+	 * @param \DateTime $registeredAt
+	 */
+	public function setRegisteredAt($registeredAt)
+	{
+		$this->registeredAt = $registeredAt;
+	}
+
+	/**
+	 * @return boolean
+	 */
+	public function isActive()
+	{
+		return $this->isActive == 1 ? true : false;
+	}
+
+	/**
+	 * @param boolean $isActive
+	 */
+	public function setIsActive($isActive)
+	{
+		$this->isActive = $isActive ? 1 : 0;
+	}
+
+	/**
+	 * @return int
+	 */
+	public function getVersionNumber()
+	{
+		return $this->versionNumber;
+	}
+
+	/**
+	 * @param int $versionNumber
+	 */
+	public function setVersionNumber($versionNumber)
+	{
+		$this->versionNumber = $versionNumber;
 	}
 
 

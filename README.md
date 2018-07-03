@@ -110,12 +110,17 @@ DbChanger database. Now, environment is ready for dbChange deployments.
 php bin/console.php dbchanger:register 12345
 
 php bin/console.php dbchanger:register 12345 -d
+
+php bin/console.php dbchanger:register 12345 -o
 ```
 
 This command will load sql content of dbChange files into internal DbChanger database.
 Now, dbChange is ready to be installed on selected environment.
-In case -d is specified, all dependant DbChanges specified in file `_requirements.txt` are ignored. This is useful during development when
+
+In case `-d` is specified (debug), all dependant DbChanges specified in file `_requirements.txt` are ignored. This is useful during development when
 developer needs to test one particular DbChanges and dependencies are not important.
+
+In case `-o` is specified (overwrite), existing DbChange (if any) is overwritten - this is possible only if there is no pending installation of this DbChange.
 
 Source dbChange content is searched in `inputDirectory` specified in [config.neon](config/config.neon)
 
@@ -159,7 +164,7 @@ It can be also useful to dump dbChange or individual fragment content into the f
 E.g. in case of manual dbChange when sql can be executed by separate process only.
 Following command will generate final sql content for environment DEV, dbChange 12345
 and fragment with index 7 whole content. Output folder can be specified in 
-configuration file. In case -d is specified, output is dumped into standard output. 
+configuration file.  
 ```
 php bin/console.php dbchanger:generate DEV 12345
 
@@ -167,6 +172,8 @@ php bin/console.php dbchanger:generate DEV 12345 I7
 
 php bin/console.php dbchanger:generate DEV 12345 I7 -d
 ```
+
+In case `-d` is specified, output is dumped into standard output.
 
 Source dbChange content is searched in `inputDirectory` specified in [config.neon](config/config.neon)
 Generated content is stored in `outputDirectory` specified in [config.neon](config/config.neon)
@@ -186,6 +193,5 @@ TODO
 * Check command - check all connections, check all sequences
 
 * Reinit command - when environment, group, user is changed/added/removed, reflect this change
-* Register command - add update support when dbChange/fragment is changed
 * Rollback command - add support for inverse dbChange and implement dbChange roll back
 * List command - list all dbchange which can be registered
