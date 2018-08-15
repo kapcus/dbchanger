@@ -57,18 +57,24 @@ Group name can be also used as a placeholder. As a result,
 line of sql code will be inserted for each user assigned into the group and placeholder value will 
 be replaced with user name.
 
+Following notation is used: 
+* `I1` = `Installation` with id 1
+* `F2` = `Installation fragment` with id 2
+* `X3` = `Fragment index` with id 3
+* `L4` = `Installation log` with id 4
+
+
 Available Installation statuses:
 * `N` = `New` - initial status which means installation can start
 * `P` = `Pending` - status signaling that at least one pending installation fragment exists 
 * `I` = `Installed` - all installation fragments were successfully installed
-* `R` = `Rolled back` - all installation fragments were successfully rolled back
 * `C` = `Cancelled` - all installation fragments were cancelled
 
 Available Installation fragment statuses:
 * `N` = `New` - initial status which means installation fragment is ready for installation
 * `P` = `Pending` - status signaling that installation of this installation fragment already started but something wrong happened
 * `I` = `Installed` - installation fragment has been successfully installed
-* `R` = `Rolled back` - installation fragment has been successfully rolled back
+* `S` = `Skipped` - installation fragment has been skipped
 * `C` = `Cancelled` - installation fragment has been cancelled
 
 Installation
@@ -142,20 +148,38 @@ All executed queries are logged into `logDirectory` specified in [config.neon](c
 
 Other functionality
 ---------
-DbChanger can display status of the installation and if the installation is still in progress,
-all installation fragments are listed with particular attributes
+DbChanger can display status of installations and all installation fragments are listed with particular attributes
 (e.g. display status of installation for dbChange 12345 on DEV environment)
 ```
 php bin/console.php dbchanger:status DEV 12345
 ```
 
+========================================
+
 In case installation fails or group is to be installed manually, manual interaction is expected.
 During installation, DbChanger will recognize this state and will report it.
 Once manually executed or fixed, it is necessary to tell DbChanger that issue
-has been fixed. Following command can change status of dbChange fragment 
-(e.g. fragment F3 to status INSTALLED) 
+has been fixed. Following commands can change status of dbChange fragment(s) 
+(e.g. fragment F3 to status INSTALLED, fragments F3, F4 and F5 to status CANCELLED, whole installation to status NEW) 
 ```
 php bin/console.php dbchanger:mark F3 I
+php bin/console.php dbchanger:mark F3-F5 C
+php bin/console.php dbchanger:mark I1 N
+```
+
+========================================
+
+Command `log` can be used for displaying installation log history for given installed fragment
+```
+php bin/console.php dbchanger:log F5
+```
+
+========================================
+
+Command `display` can be useful for displaying sql content of installed fragment or installation log entry.
+```
+php bin/console.php dbchanger:display F5
+php bin/console.php dbchanger:display L10
 ```
 
 ========================================
@@ -168,9 +192,9 @@ configuration file.
 ```
 php bin/console.php dbchanger:generate DEV 12345
 
-php bin/console.php dbchanger:generate DEV 12345 I7
+php bin/console.php dbchanger:generate DEV 12345 X7
 
-php bin/console.php dbchanger:generate DEV 12345 I7 -d
+php bin/console.php dbchanger:generate DEV 12345 X7 -d
 ```
 
 In case `-d` is specified, output is dumped into standard output.

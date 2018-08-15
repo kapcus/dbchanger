@@ -104,10 +104,9 @@ class Manager
 			} elseif ($this->hasDbChangePendingInstallation($existingDbChange)) {
 				throw new DbChangeException(sprintf('DbChange %s has pending installations, deal with them first.', $dbChange->getCode()));
 			}
-			$dbChange->setVersionNumber($existingDbChange->getVersionNumber()+1);
+			$dbChange->setVersionNumber($existingDbChange->getVersionNumber() + 1);
 			$existingDbChange->setIsActive(false);
 			$this->entityManager->persist($existingDbChange);
-
 		}
 		$dbChange->loadFragmentTemplateContent();
 		$this->entityManager->persist($dbChange);
@@ -221,12 +220,13 @@ class Manager
 		return $this->entityManager->getRepository(Installation::class)->findOneBy($whereCondition) !== null;
 	}
 
-	public function getInstalledInstallation(Environment $environment, DbChange $dbChange) {
+	public function getInstalledInstallation(Environment $environment, DbChange $dbChange)
+	{
 
 		$whereCondition = [
 			'environment' => $environment->getId(),
 			'dbChange' => $dbChange->getId(),
-			'status' => InstalledFragment::STATUS_INSTALLED
+			'status' => Installation::STATUS_INSTALLED,
 		];
 
 		return $this->entityManager->getRepository(Installation::class)->findOneBy($whereCondition);
@@ -255,7 +255,8 @@ class Manager
 	 */
 	public function getInstallationsByDbChangeCode(Environment $environment, $dbChangeCode)
 	{
-		$query = $this->entityManager->createQuery('select 
+		$query = $this->entityManager->createQuery(
+			'select 
 														  	i 
 														  from 
 															Kapcus\DbChanger\Entity\Installation i, 
@@ -265,9 +266,11 @@ class Manager
 															i.environment = e AND
 															i.dbChange = d AND
 															e.id = ?1 AND 
-															d.id IN (SELECT dd.id FROM Kapcus\DbChanger\Entity\DbChange dd WHERE dd.code = ?2) ORDER BY d.id ASC, i.id ASC');
+															d.id IN (SELECT dd.id FROM Kapcus\DbChanger\Entity\DbChange dd WHERE dd.code = ?2) ORDER BY d.id ASC, i.id ASC'
+		);
 		$query->setParameter(1, $environment->getId());
 		$query->setParameter(2, $dbChangeCode);
+
 		return $query->getResult();
 	}
 
@@ -329,12 +332,13 @@ class Manager
 		}
 
 		try {
-			foreach($dbChange->getRequiredDbChanges() as $requiredDbChange) {
+			foreach ($dbChange->getRequiredDbChanges() as $requiredDbChange) {
 				$reqDbChangeInstallation = $this->getInstalledInstallation($environment, $requiredDbChange->getRequiredDbChange());
 				if ($reqDbChangeInstallation == null) {
 					throw new InstallationException(
 						sprintf(
-							'Required DbChange %s is not installed. Install it first.', $requiredDbChange->getRequiredDbChange()->getCode()
+							'Required DbChange %s is not installed. Install it first.',
+							$requiredDbChange->getRequiredDbChange()->getCode()
 						)
 					);
 				}
@@ -375,15 +379,40 @@ class Manager
 				$this->installFragment($userConnectionConfiguration, $installationFragment);
 				$installation->setStatus(InstalledFragment::STATUS_PENDING);
 			}
-			$installation->setStatus(InstalledFragment::STATUS_INSTALLED);
+			$installation->setStatus(Installation::STATUS_INSTALLED);
 		} catch (ConnectionException $e) {
 			throw $e;
 		} catch (ExecutionException $e) {
-			$installation->setStatus(InstalledFragment::STATUS_PENDING);
+			$installation->setStatus(Installation::STATUS_PENDING);
 			throw $e;
 		} finally {
 			$this->entityManager->flush();
 		}
+	}
+
+	/**
+	 * @param int[] $fragmentIds
+	 * @param string $statusShortcut
+	 *
+	 * @throws \Doctrine\ORM\OptimisticLockException
+	 * @throws \Kapcus\DbChanger\Model\Exception\DbChangeException
+	 */
+	private function markFragmentsByIds($fragmentIds, $statusShortcut)
+	{
+		$installationId = null;
+		foreach($fragmentIds as $fragmentId) {
+			$installationFragment = $this->getInstallationFragmentById($fragmentId);
+			if ($installationFragment == null) {
+				throw new DbChangeException(sprintf('Installation fragment with given id %s not found.', $fragmentId));
+			}
+			if ($installationId == null) {
+				$installationId = $installationFragment->getInstallation()->getId();
+			} elseif ($installationId !== $installationFragment->getInstallation()->getId()) {
+				throw new DbChangeException(sprintf('Fragments belongs to different installations which is not allowed.', $fragmentId));
+			}
+			$this->markFragment($installationFragment, $statusShortcut, false);
+		}
+		$this->entityManager->flush();
 	}
 
 	/**
@@ -406,10 +435,12 @@ class Manager
 	 * @param \Kapcus\DbChanger\Entity\InstalledFragment $installationFragment
 	 * @param string $statusShortcut
 	 *
+	 * @param bool $commit TRUE = commit will be called
+	 *
 	 * @throws \Doctrine\ORM\OptimisticLockException
 	 * @throws \Kapcus\DbChanger\Model\Exception\DbChangeException
 	 */
-	public function markFragment(InstalledFragment $installationFragment, $statusShortcut)
+	public function markFragment(InstalledFragment $installationFragment, $statusShortcut, $commit = true)
 	{
 		$fragmentStatus = InstalledFragment::getStatusByShortcut($statusShortcut);
 		if ($fragmentStatus == null) {
@@ -419,7 +450,9 @@ class Manager
 		}
 
 		$installationFragment->setStatus($fragmentStatus);
-		$this->entityManager->flush();
+		if ($commit) {
+			$this->entityManager->flush();
+		}
 	}
 
 	/**
@@ -528,6 +561,26 @@ class Manager
 	public function getInstallationFragmentById($id)
 	{
 		return $this->entityManager->getRepository(InstalledFragment::class)->find($id);
+	}
+
+	/**
+	 * @param int $id
+	 *
+	 * @return null|\Kapcus\DbChanger\Entity\InstallationLog
+	 */
+	public function getInstallationLogById($id)
+	{
+		return $this->entityManager->getRepository(InstallationLog::class)->find($id);
+	}
+
+	/**
+	 * @param int $id
+	 *
+	 * @return null|\Kapcus\DbChanger\Entity\InstalledFragment
+	 */
+	public function getInstallationById($id)
+	{
+		return $this->entityManager->getRepository(Installation::class)->find($id);
 	}
 
 	/**
@@ -669,7 +722,6 @@ class Manager
 		return $this->entityManager->getRepository(DbChange::class)->findOneBy(['code' => $dbChangeCode, 'isActive' => 1]);
 	}
 
-
 	/**
 	 * @param \Kapcus\DbChanger\Entity\Environment $environment
 	 * @param \Kapcus\DbChanger\Entity\DbChange $dbChange
@@ -684,7 +736,7 @@ class Manager
 		$installation->setCreatedBy($createdBy);
 		$installation->setEnvironment($environment);
 		$installation->setDbChange($dbChange);
-		$installation->setStatus(InstalledFragment::STATUS_NEW);
+		$installation->setStatus(Installation::STATUS_NEW);
 		$this->entityManager->persist($installation);
 		$this->entityManager->flush();
 
@@ -727,27 +779,74 @@ class Manager
 	}
 
 	/**
-	 * @param \Kapcus\DbChanger\Entity\Installation $installation
-	 * @param \Kapcus\DbChanger\Entity\Fragment $fragment
-	 * @param \Kapcus\DbChanger\Entity\User $user
+	 * @param string $target
+	 * @param string $statusShortcut
 	 *
-	 * @return null|\Kapcus\DbChanger\Entity\InstalledFragment
+	 * @throws \Doctrine\ORM\OptimisticLockException
+	 * @throws \Kapcus\DbChanger\Model\Exception\DbChangeException
 	 */
-	private function getInstallationFragment(Installation $installation, Fragment $fragment, User $user)
+	public function markTarget($target, $statusShortcut)
 	{
-		$userGroup = $installation->getEnvironment()->getUserGroup($fragment->getGroup()->getName(), $user->getName());
+		if (($fragmentId = Util::parseFragmentId($target)) !== null) {
+			$this->markFragmentById($fragmentId, $statusShortcut);
+		} elseif (($fragmentIds = Util::parseFragmentRange($target)) !== null) {
+			$this->markFragmentsByIds($fragmentIds, $statusShortcut);
+		} elseif (($installationId = Util::parseInstallationId($target)) !== null) {
+			$this->markInstallationById($installationId, $statusShortcut);
+		} else {
+			throw new DbChangeException(sprintf('Unsupported target for mark, only fragment id, fragment range or installation id is supported.'));
+		}
+	}
 
-		if ($userGroup == null) {
-			return null;
+	/**
+	 * @param string $fragmentInputId
+	 *
+	 * @return \Kapcus\DbChanger\Entity\InstalledFragment|null
+	 * @throws \Kapcus\DbChanger\Model\Exception\DbChangeException
+	 */
+	public function getInstallationFragment($fragmentInputId) {
+		$fragmentId = Util::parseFragmentId($fragmentInputId);
+
+		if ($fragmentId == null) {
+			throw new DbChangeException(sprintf('Installation fragment id is not valid.', $fragmentInputId));
 		}
 
-		return $this->entityManager->getRepository(InstalledFragment::class)->findOneBy(
-			[
-				'installation' => $installation,
-				'fragment' => $fragment,
-				'userGroup' => $userGroup,
-			]
-		);
+		$installationFragment = $this->getInstallationFragmentById($fragmentId);
+		if ($installationFragment == null) {
+			throw new DbChangeException(sprintf('Installation fragment with given id %s not found.', $fragmentId));
+		}
+		return $installationFragment;
+	}
+
+	/**
+	 * @param string $fragmentInputId
+	 *
+	 * @return \Kapcus\DbChanger\Model\Reporting\Table
+	 * @throws \Kapcus\DbChanger\Model\Exception\DbChangeException
+	 */
+	public function getInstallationFragmentLogReport($fragmentInputId)
+	{
+		$installationFragment = $this->getInstallationFragment($fragmentInputId);
+
+		$logs = $installationFragment->getLogs();
+
+		$table = new Table();
+		$table->addColumn(new Column('ID', Column::TYPE_STRING, 8));
+		$table->addColumn(new Column('INST. STATUS', Column::TYPE_STRING, 12));
+		$table->addColumn(new Column('FRAG. STATUS', Column::TYPE_STRING, 12));
+		$table->addColumn(new Column('CONTENT', Column::TYPE_STRING, 50));
+		$table->addColumn(new Column('RESULT', Column::TYPE_STRING, 50));
+
+		foreach ($logs as $log) {
+			$table->addRow();
+			$table->addField(Util::getLogId($log->getId()));
+			$table->addField(Installation::getStatusName($log->getInstallationStatus()));
+			$table->addField(InstalledFragment::getStatusName($log->getInstalledFragmentStatus()));
+			$table->addField(substr($log->getContent(), 0, 50));
+			$table->addField(substr($log->getResultMessage(), 0, 50));
+		}
+
+		return $table;
 	}
 
 	/**
@@ -760,7 +859,7 @@ class Manager
 	{
 		$output = [];
 		$output['messages'] = [];
-		$activeInstallations = [];
+		$installationDetails = [];
 		$installations = $this->getInstallationsByDbChangeCode($environment, $dbChangeCode);
 
 		$table = new Table();
@@ -771,21 +870,16 @@ class Manager
 
 		foreach ($installations as $installation) {
 			$table->addRow();
-			$table->addField($installation->getId());
+			$table->addField(Util::getInstallationId($installation->getId()));
 			$table->addField($installation->getDbChange()->getVersionNumber());
-			$table->addField(InstalledFragment::getStatusName($installation->getStatus()));
+			$table->addField(Installation::getStatusName($installation->getStatus()));
 			$table->addField($installation->getCreatedAt());
-			if (in_array($installation->getStatus(), InstalledFragment::getActiveStatuses())) {
-				$activeInstallations[] = $installation;
-			}
+			$installationDetails[] = $installation;
 		}
 		$output['installations'] = $table;
-		$output['activeinstallations'] = [];
+		$output['details'] = [];
 
-		if (count($activeInstallations) > 1) {
-			$output['messages'][] = '!!!!There are %s active installation defined, which is wrong (1 active installation for particular dbchange and environment can exist at the same time) and it seems that DbChanger database is corrupted. Fix this immediately.!!!!';
-		}
-		foreach ($activeInstallations as $installation) {
+		foreach ($installationDetails as $installation) {
 			$installationFragments = $this->getInstallationFragments($installation);
 
 			$table = new Table();
@@ -807,9 +901,75 @@ class Manager
 				$table->addField($installationFragment->getUserGroup()->getGroup()->getName());
 				$table->addField($installationFragment->getUserGroup()->getUser()->getName());
 			}
-			$output['activeinstallations'][$key] = $table;
+			$output['details'][$key] = $table;
 		}
 
 		return $output;
+	}
+
+	/**
+	 * @param int $installationId
+	 * @param string $statusShortcut
+	 *
+	 * @throws \Doctrine\ORM\OptimisticLockException
+	 * @throws \Kapcus\DbChanger\Model\Exception\DbChangeException
+	 */
+	private function markInstallationById($installationId, $statusShortcut)
+	{
+		$installation = $this->getInstallationById($installationId);
+		if ($installation == null) {
+			throw new DbChangeException(sprintf('Installation with given id %s not found.', $installationId));
+		}
+		$installationStatus = Installation::getStatusByShortcut($statusShortcut);
+		if ($installationStatus == null) {
+			throw new DbChangeException(
+				sprintf('Invalid status shortcut \'%s\' given. Use one of: %s', $statusShortcut, Installation::getStatusNameString())
+			);
+		}
+
+		$installation->setStatus($installationStatus);
+		$this->entityManager->flush();
+
+
+	}
+
+	/**
+	 * @param string $logInputId
+	 *
+	 * @return \Kapcus\DbChanger\Entity\InstallationLog|null
+	 * @throws \Kapcus\DbChanger\Model\Exception\DbChangeException
+	 */
+	public function getInstallationLog($logInputId) {
+		$logId = Util::parseLogId($logInputId);
+
+		if ($logId == null) {
+			throw new DbChangeException(sprintf('Installation log id is not valid.', $logInputId));
+		}
+
+		$installationLog = $this->getInstallationLogById($logId);
+		if ($installationLog == null) {
+			throw new DbChangeException(sprintf('Installation log with given id %s not found.', $logId));
+		}
+		return $installationLog;
+	}
+
+	/**
+	 * @param string $target
+	 *
+	 * @return string[]
+	 * @throws \Kapcus\DbChanger\Model\Exception\DbChangeException
+	 */
+	public function displayDetail($target)
+	{
+		if (Util::parseFragmentId($target) !== null) {
+			$installationFragment = $this->getInstallationFragment($target);
+			return ['CONTENT' => $installationFragment->getContent()];
+
+		} elseif (Util::parseLogId($target) !== null) {
+			$log = $this->getInstallationLog($target);
+			return ['CONTENT' => $log->getContent(), 'RESULT' => $log->getResultMessage()];
+		} else {
+			throw new DbChangeException(sprintf('Unsupported target for display, only fragment id or log id is supported.'));
+		}
 	}
 }

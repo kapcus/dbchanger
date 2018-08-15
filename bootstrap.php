@@ -23,7 +23,7 @@ $class = $loader->load('', function($compiler) {
 });
 $container = new $class;
 
-$application = new Application('DbChanger', '0.5.1');
+$application = new Application('DbChanger', '0.5.4');
 $application->add($container->getByType(Kapcus\DbChanger\Command\CheckCommand::class));
 $application->add($container->getByType(Kapcus\DbChanger\Command\MarkCommand::class));
 $application->add($container->getByType(Kapcus\DbChanger\Command\InitCommand::class));
@@ -32,5 +32,7 @@ $application->add($container->getByType(Kapcus\DbChanger\Command\InstallCommand:
 $application->add($container->getByType(Kapcus\DbChanger\Command\GenerateCommand::class));
 $application->add($container->getByType(Kapcus\DbChanger\Command\RegisterCommand::class));
 $application->add($container->getByType(Kapcus\DbChanger\Command\StatusCommand::class));
+$application->add($container->getByType(Kapcus\DbChanger\Command\DisplayCommand::class));
+$application->add($container->getByType(Kapcus\DbChanger\Command\LogCommand::class));
 exit($application->run());
 

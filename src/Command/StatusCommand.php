@@ -2,49 +2,26 @@
 
 namespace Kapcus\DbChanger\Command;
 
-use Doctrine\Common\Util\Debug;
 use Kapcus\DbChanger\Model\Exception\DbChangeException;
 use Kapcus\DbChanger\Model\Exception\EnvironmentException;
 use Kapcus\DbChanger\Model\Exception\InstallationException;
-use Kapcus\DbChanger\Model\Executor;
-use Kapcus\DbChanger\Model\IConfigurator;
-use Kapcus\DbChanger\Model\IExecutor;
-use Kapcus\DbChanger\Model\ILoader;
-use Kapcus\DbChanger\Model\DibiStorage;
 use Kapcus\DbChanger\Model\Manager;
-use Kapcus\DbChanger\Model\Reporting\Row;
-use Kapcus\DbChanger\Model\Reporting\Table;
-use Nette\NotImplementedException;
-use Symfony\Component\Console\Command\Command;
+use Kapcus\DbChanger\Model\Util;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
-class StatusCommand extends Command
+class StatusCommand extends FormattedOutputCommand
 {
-
-	const FIELD_WIDTH = 15;
-	/**
-	 * @var \Kapcus\DbChanger\Model\ILoader
-	 */
-	public $loader;
 
 	/**
 	 * @var \Kapcus\DbChanger\Model\Manager
 	 */
 	public $manager;
 
-	/**
-	 * @var \Kapcus\DbChanger\Model\IConfigurator
-	 */
-	public $configurator;
-
-	public function __construct(ILoader $loader, Manager $manager, IConfigurator $configurator)
+	public function __construct(Manager $manager)
 	{
-		$this->loader = $loader;
 		$this->manager = $manager;
-		$this->configurator = $configurator;
 		parent::__construct();
 	}
 
@@ -71,8 +48,8 @@ class StatusCommand extends Command
 			$this->displayTable($output, $reportData['installations']);
 			$output->writeln('');
 			$output->writeln('');
-			foreach($reportData['activeinstallations'] as $installationId => $table) {
-				$output->writeln(sprintf('Fragments in installation %s:', $installationId));
+			foreach($reportData['details'] as $installationId => $table) {
+				$output->writeln(sprintf('Fragments in installation %s:', Util::getInstallationId($installationId)));
 				$this->displayTable($output, $table);
 				$output->writeln('');
 				$output->writeln('');
@@ -86,30 +63,5 @@ class StatusCommand extends Command
 			$output->writeln($e->getMessage());
 		}
 		exit(1);
-	}
-
-	private function displayTable(OutputInterface $output, Table $table)
-	{
-		$this->writeTableSeparator($output, $table->getWidth());
-		foreach ($table->getRows() as $row) {
-			$output->writeln($this->formatTableRow($row));
-			if ($row->isHeader()) {
-				$this->writeTableSeparator($output, $table->getWidth());
-			}
-		}
-	}
-
-	private function writeTableSeparator(OutputInterface $output, $width) {
-		$output->writeln(str_pad('',  $width, "-"));
-	}
-
-	private function formatTableRow(Row $row)
-	{
-		$chunks = [];
-		foreach($row->getCells() as $cell) {
-			$tags = sprintf($row->isHeader() ? '<info>' : '');
-			$chunks[] = $tags.sprintf('%'.$cell->getColumn()->getWidth().'s', $row->isHeader() ? $cell->getColumn()->getTitle() : $cell->getValue()).$tags;
-		}
-		return implode(' | ', $chunks);
 	}
 }

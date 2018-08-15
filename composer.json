@@ -1,6 +1,5 @@
 {
     "name": "kapcus/dbchanger",
-    "version": "0.5.3",
     "description": "Database change installation toolkit",
     "type": "library",
     "license": "MIT",

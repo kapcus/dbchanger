@@ -5,19 +5,12 @@ namespace Kapcus\DbChanger\Command;
 use Kapcus\DbChanger\Model\Exception\ConfigurationException;
 use Kapcus\DbChanger\Model\Exception\DbChangeException;
 use Kapcus\DbChanger\Model\IConfigurator;
-use Kapcus\DbChanger\Model\ILoader;
 use Kapcus\DbChanger\Model\Manager;
-use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
-class CheckCommand extends Command
+class CheckCommand extends FormattedOutputCommand
 {
-	/**
-	 * @var \Kapcus\DbChanger\Model\ILoader
-	 */
-	public $loader;
-
 	/**
 	 * @var \Kapcus\DbChanger\Model\Manager
 	 */
@@ -28,8 +21,7 @@ class CheckCommand extends Command
 	 */
 	public $configurator;
 
-	public function __construct(ILoader $loader, Manager $manager, IConfigurator $configurator) {
-		$this->loader = $loader;
+	public function __construct(Manager $manager, IConfigurator $configurator) {
 		$this->manager = $manager;
 		$this->configurator = $configurator;
 		parent::__construct();

@@ -11,6 +11,29 @@ use Doctrine\Common\Collections\ArrayCollection;
  */
 class Installation
 {
+	const STATUS_NEW = 1;
+
+	const STATUS_PENDING = 2;
+
+	const STATUS_INSTALLED = 3;
+
+	const STATUS_CANCELLED = 5;
+
+	private static $activeStatuses = [
+		self::STATUS_NEW,
+		self::STATUS_PENDING
+	];
+
+	/**
+	 * @var array
+	 */
+	private static $statuses;
+
+	/**
+	 * @var string[]
+	 */
+	private static $shortcuts;
+
 	/** @ORM\Id
 	 * @ORM\Column(type="integer")
 	 * @ORM\GeneratedValue(strategy="SEQUENCE")
@@ -172,4 +195,69 @@ class Installation
 		return $this->createdAt;
 	}
 
+	/**
+	 * @return array
+	 */
+	public static function getStatuses()
+	{
+		if (!isset(self::$statuses)) {
+			self::$statuses = [
+				self::STATUS_NEW => '(N)ew',
+				self::STATUS_PENDING => '(P)ending',
+				self::STATUS_INSTALLED => '(I)nstalled',
+				self::STATUS_CANCELLED => '(C)ancelled',
+			];
+
+			self::$shortcuts = [];
+			foreach(self::$statuses as $key => $value) {
+				self::$shortcuts[$value[1]] = $key;
+			}
+		}
+
+		return self::$statuses;
+	}
+
+	/**
+	 * @param string $shortcut
+	 *
+	 * @return null|int
+	 */
+	public static function getStatusByShortcut($shortcut)
+	{
+		$shortcut = strtoupper($shortcut);
+
+		return isset(self::$shortcuts[$shortcut]) ? self::$shortcuts[$shortcut] : null;
+	}
+
+	/**
+	 * @return string
+	 */
+	public static function getStatusNameString() {
+		return implode(', ', array_values(self::getStatuses()));
+	}
+
+	/**
+	 * @return int[]
+	 */
+	public static function getActiveStatuses() {
+		return self::$activeStatuses;
+	}
+
+	/**
+	 * @param int $key
+	 *
+	 * @return string|null
+	 */
+	public static function getStatusName($key) {
+		return isset(self::$statuses[$key]) ? str_replace(['(', ')'], '', self::$statuses[$key]) : null;
+	}
+
+	/**
+	 * @param int $key
+	 *
+	 * @return string|null
+	 */
+	public static function getStatusShortcut($key) {
+		return isset(self::$statuses[$key]) ? self::$statuses[$key][1] : null;
+	}
 }

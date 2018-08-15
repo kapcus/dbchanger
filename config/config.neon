@@ -35,3 +35,5 @@ services:
 	- Kapcus\DbChanger\Command\InstallCommand
 	- Kapcus\DbChanger\Command\GenerateCommand
 	- Kapcus\DbChanger\Command\StatusCommand
+	- Kapcus\DbChanger\Command\DisplayCommand
+	- Kapcus\DbChanger\Command\LogCommand

@@ -4,19 +4,12 @@ namespace Kapcus\DbChanger\Command;
 
 use Kapcus\DbChanger\Model\Exception\OutOfSyncException;
 use Kapcus\DbChanger\Model\IConfigurator;
-use Kapcus\DbChanger\Model\ILoader;
 use Kapcus\DbChanger\Model\Manager;
-use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
-class InitCommand extends Command
+class InitCommand extends FormattedOutputCommand
 {
-	/**
-	 * @var \Kapcus\DbChanger\Model\ILoader
-	 */
-	public $loader;
-
 	/**
 	 * @var \Kapcus\DbChanger\Model\Manager
 	 */
@@ -27,8 +20,7 @@ class InitCommand extends Command
 	 */
 	public $configurator;
 
-	public function __construct(ILoader $loader, Manager $manager, IConfigurator $configurator) {
-		$this->loader = $loader;
+	public function __construct(Manager $manager, IConfigurator $configurator) {
 		$this->manager = $manager;
 		$this->configurator = $configurator;
 		parent::__construct();
@@ -47,8 +39,6 @@ class InitCommand extends Command
 			$this->manager->initializeGroups($this->configurator->getGroups());
 			$this->manager->initializeEnvironments($this->configurator->getEnvironments());
 			$output->writeln('Environments successfully initialized.');
-		} catch (OutOfSyncException $e) {
-			$output->writeln($e->getMessage().' Consider running "reinit" command.');
 		} catch (OutOfSyncException $e) {
 			$output->writeln($e->getMessage().' Consider running "reinit" command.');
 		}

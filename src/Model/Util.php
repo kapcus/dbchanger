@@ -14,11 +14,12 @@ class Util
 	 */
 	public static function getGroupByName(array $groups, $groupName)
 	{
-		foreach($groups as $group) {
+		foreach ($groups as $group) {
 			if ($group->getName() == $groupName) {
 				return $group;
 			}
 		}
+
 		return null;
 	}
 
@@ -31,11 +32,12 @@ class Util
 	public static function getUserGroupUsersByGroupName($userGroups, $groupName)
 	{
 		$users = [];
-		foreach($userGroups as $userGroup) {
+		foreach ($userGroups as $userGroup) {
 			if ($userGroup->getGroup()->getName() == $groupName) {
 				$users[] = $userGroup->getUser();
 			}
 		}
+
 		return $users;
 	}
 
@@ -47,11 +49,12 @@ class Util
 	 */
 	public static function getConnectionConfigurationByUserName(array $connectionConfigurations, $username)
 	{
-		foreach($connectionConfigurations as $connectionConfiguration) {
+		foreach ($connectionConfigurations as $connectionConfiguration) {
 			if ($connectionConfiguration->getUsername() == $username) {
 				return $connectionConfiguration;
 			}
 		}
+
 		return null;
 	}
 
@@ -73,48 +76,51 @@ class Util
 	}
 
 	/**
-	 * @param string $fragmentId
+	 * Parse fragment index, in case input is not valid, null is returned.
 	 *
-	 * @return bool
-	 */
-	public static function isFragmentId($fragmentId)
-	{
-		if (!is_string($fragmentId)) {
-			return false;
-		}
-		if ($fragmentId[0] != 'F') {
-			return false;
-		}
-		return is_numeric(substr($fragmentId, 1));
-	}
-
-	/**
-	 * @param string $fragmentIndex
-	 *
-	 * @return bool
-	 */
-	public static function isFragmentIndex($fragmentIndex)
-	{
-		if (!is_string($fragmentIndex)) {
-			return false;
-		}
-		if ($fragmentIndex[0] != 'I') {
-			return false;
-		}
-		return is_numeric(substr($fragmentIndex, 1));
-	}
-
-	/**
-	 * @param string $fragmentId
+	 * @param string $input
 	 *
 	 * @return int|null
 	 */
-	public static function getIdFromFragmentId($fragmentId) {
-		if (self::isFragmentId($fragmentId)) {
-			return intval(substr($fragmentId, 1));
-		} else {
-			return null;
-		}
+	public static function parseFragmentIndex($input)
+	{
+		return self::parseId('X', $input);
+	}
+
+	/**
+	 * Parse fragment id, in case input is not valid, null is returned.
+	 *
+	 * @param string $input
+	 *
+	 * @return int|null
+	 */
+	public static function parseFragmentId($input)
+	{
+		return self::parseId('F', $input);
+	}
+
+	/**
+ * Parse installation id, in case input is not valid, null is returned.
+ *
+ * @param string $input
+ *
+ * @return int|null
+ */
+	public static function parseInstallationId($input)
+	{
+		return self::parseId('I', $input);
+	}
+
+	/**
+	 * Parse log id, in case input is not valid, null is returned.
+	 *
+	 * @param string $input
+	 *
+	 * @return int|null
+	 */
+	public static function parseLogId($input)
+	{
+		return self::parseId('L', $input);
 	}
 
 	/**
@@ -122,7 +128,8 @@ class Util
 	 *
 	 * @return string
 	 */
-	public static function getFragmentId($id) {
+	public static function getFragmentId($id)
+	{
 		return sprintf('F%s', $id);
 	}
 
@@ -131,20 +138,80 @@ class Util
 	 *
 	 * @return string
 	 */
-	public static function getFragmentIndex($index) {
-		return sprintf('I%s', $index);
+	public static function getFragmentIndex($index)
+	{
+		return sprintf('X%s', $index);
 	}
 
 	/**
-	 * @param string $fragmentIndex
+	 * @param int $id
 	 *
-	 * @return int|null
+	 * @return string
 	 */
-	public static function getIndexFromFragmentIndex($fragmentIndex) {
-		if (self::isFragmentIndex($fragmentIndex)) {
-			return intval(substr($fragmentIndex, 1));
-		} else {
+	public static function getInstallationId($id)
+	{
+		return sprintf('I%s', $id);
+	}
+
+	/**
+	 * @param int $id
+	 *
+	 * @return string
+	 */
+	public static function getLogId($id)
+	{
+		return sprintf('L%s', $id);
+	}
+
+	/**
+	 * Parse fragment range. Returns all fragment ids within the range, FALSE in case of invalid range.
+	 *
+	 * @param string $target
+	 *
+	 * @return int[]|null
+	 */
+	public static function parseFragmentRange($target)
+	{
+		$target = str_replace(' ', '', $target);
+		$chunks = explode('-', $target);
+		if (count($chunks) != 2) {
 			return null;
 		}
+		$start = self::parseFragmentId($chunks[0]);
+		$end = self::parseFragmentId($chunks[1]);
+		if ($start == null || $end == null) {
+			return null;
+		}
+		$ids = [];
+		for ($i = $start; $i <= $end; $i++) {
+			$ids[] = $i;
+		}
+
+		return $ids;
+	}
+
+	/**
+	 * Parse id from input. In case invalid input is given returns null.
+	 *
+	 * @param string $shortcutLetter
+	 * @param string $input
+	 *
+	 * @return null|int
+	 */
+	private static function parseId($shortcutLetter, $input)
+	{
+		$input = trim($input);
+
+		if (!is_string($input)) {
+			return null;
+		}
+		if ($input[0] != $shortcutLetter) {
+			return null;
+		}
+		$id = substr($input, 1);
+		if (!is_numeric($id)) {
+			return null;
+		}
+		return intval($id);
 	}
 }

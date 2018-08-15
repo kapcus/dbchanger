@@ -2,21 +2,18 @@
 
 namespace Kapcus\DbChanger\Command;
 
-use Doctrine\Common\Util\Debug;
 use Kapcus\DbChanger\Model\Exception\DbChangeException;
 use Kapcus\DbChanger\Model\Exception\EnvironmentException;
-use Kapcus\DbChanger\Model\IConfigurator;
 use Kapcus\DbChanger\Model\IGenerator;
 use Kapcus\DbChanger\Model\ILoader;
 use Kapcus\DbChanger\Model\Manager;
 use Kapcus\DbChanger\Model\Util;
-use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
-class GenerateCommand extends Command
+class GenerateCommand extends FormattedOutputCommand
 {
 	/**
 	 * @var \Kapcus\DbChanger\Model\ILoader
@@ -34,15 +31,9 @@ class GenerateCommand extends Command
 	public $manager;
 
 
-	/**
-	 * @var \Kapcus\DbChanger\Model\IConfigurator
-	 */
-	public $configurator;
-
-	public function __construct(ILoader $loader, IGenerator $generator, IConfigurator $configurator, Manager $manager) {
+	public function __construct(ILoader $loader, IGenerator $generator, Manager $manager) {
 		$this->loader = $loader;
 		$this->generator = $generator;
-		$this->configurator = $configurator;
 		$this->manager = $manager;
 		parent::__construct();
 	}
@@ -63,7 +54,7 @@ class GenerateCommand extends Command
 		$environmentCode = strtoupper($input->getArgument('env'));
 		$dbChangeCode = strtoupper($input->getArgument('dbchange'));
 		$fragmentIndex = $input->getArgument('fragmentIndex');
-		$fragmentId = Util::getIndexFromFragmentIndex($fragmentIndex);
+		$fragmentIndexId = Util::parseFragmentIndex($fragmentIndex);
 
 		if ($input->getOption('debug')) {
 			$this->generator->enableDebug();
@@ -73,10 +64,10 @@ class GenerateCommand extends Command
 			$environment = $this->manager->getEnvironmentByCode($environmentCode);
 			if ($dbChangeCode != '') {
 				$dbChange = $this->loader->loadDbChangeFromInputDirectory($this->manager->getGroups(), $dbChangeCode);
-				if ($fragmentId !== null) {
+				if ($fragmentIndexId !== null) {
 					$found = false;
 					foreach($dbChange->getFragments() as $fragment) {
-						if ($fragment->getIndex() == $fragmentId) {
+						if ($fragment->getIndex() == $fragmentIndexId) {
 							$found = true;
 							$this->generator->generateFragmentIntoFile($environment, $fragment);
 							break;

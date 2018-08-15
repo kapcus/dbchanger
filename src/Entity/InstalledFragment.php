@@ -16,7 +16,7 @@ class InstalledFragment
 
 	const STATUS_INSTALLED = 3;
 
-	const STATUS_ROLLEDBACK = 4;
+	const STATUS_SKIPPED = 4;
 
 	const STATUS_CANCELLED = 5;
 
@@ -89,6 +89,13 @@ class InstalledFragment
 	 * @var \Kapcus\DbChanger\Entity\Fragment
 	 **/
 	protected $fragment;
+
+	/**
+	 * @ORM\OneToMany(targetEntity="InstallationLog", mappedBy="installedFragment")
+	 *
+	 * @var \Kapcus\DbChanger\Entity\InstallationLog[]
+	 */
+	protected $logs;
 
 	/**
 	 * @return int
@@ -212,7 +219,7 @@ class InstalledFragment
 				self::STATUS_NEW => '(N)ew',
 				self::STATUS_PENDING => '(P)ending',
 				self::STATUS_INSTALLED => '(I)nstalled',
-				self::STATUS_ROLLEDBACK => '(R)olled back',
+				self::STATUS_SKIPPED => '(S)kipped',
 				self::STATUS_CANCELLED => '(C)ancelled',
 			];
 
@@ -244,7 +251,7 @@ class InstalledFragment
 	 * @return string
 	 */
 	public static function getStatusNameString() {
-		return implode(', ', array_values(InstalledFragment::getStatuses()));
+		return implode(', ', array_values(self::getStatuses()));
 	}
 
 	/**
@@ -271,4 +278,22 @@ class InstalledFragment
 	public static function getStatusShortcut($key) {
 		return isset(self::$statuses[$key]) ? self::$statuses[$key][1] : null;
 	}
+
+	/**
+	 * @return \Kapcus\DbChanger\Entity\InstallationLog[]
+	 */
+	public function getLogs()
+	{
+		return $this->logs;
+	}
+
+	/**
+	 * @param \Kapcus\DbChanger\Entity\InstallationLog[] $logs
+	 */
+	public function setLogs($logs)
+	{
+		$this->logs = $logs;
+	}
+
+
 }
