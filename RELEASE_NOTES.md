@@ -1,3 +1,7 @@
+0.5.5 - 2018/09/07
+=================
+* Fixed the wrong order of loaded files that could occur on some platforms.
+
 0.5.4 - 2018/08/15
 =================
 * Added command `display` for displaying content of installed fragment or installation log entry.

@@ -84,7 +84,9 @@ class Loader implements ILoader
 	private function loadDbChange(array $groups, $dbChangeDirectory)
 	{
 		$dbChange = null;
-		foreach (Finder::findFiles(sprintf('%s%s', $this->filePrefix, $this->filenameMask))->in($dbChangeDirectory->getPathname()) as $file) {
+		$files = iterator_to_array(Finder::findFiles(sprintf('%s%s', $this->filePrefix, $this->filenameMask))->in($dbChangeDirectory->getPathname()));
+		ksort($files);
+		foreach ($files as $file) {
 			if (!isset($dbChange)) {
 				$dbChangeCode = $dbChangeDirectory->getFilename();
 				$dbChange = new DbChange();
