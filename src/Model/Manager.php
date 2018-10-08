@@ -107,6 +107,16 @@ class Manager
 			$dbChange->setVersionNumber($existingDbChange->getVersionNumber() + 1);
 			$existingDbChange->setIsActive(false);
 			$this->entityManager->persist($existingDbChange);
+
+			/**
+			 * @var \Kapcus\DbChanger\Entity\Requirement $dependentDbChange
+			 */
+			foreach ($existingDbChange->getDependentDbChanges() as $dependentDbChange) {
+				if ($dependentDbChange->getRequiredDbChange()->getId() == $existingDbChange->getId()) {
+					$dependentDbChange->setRequiredDbChange($dbChange);
+					$this->entityManager->persist($dependentDbChange);
+				}
+			}
 		}
 		$dbChange->loadFragmentTemplateContent();
 		$this->entityManager->persist($dbChange);
@@ -238,13 +248,18 @@ class Manager
 	 *
 	 * @param bool $activeOnly
 	 *
-	 * @return \Kapcus\DbChanger\Entity\Installation[]
+	 * @return \Kapcus\DbChanger\Entity\Installation
 	 */
-	public function getInstallations(Environment $environment, DbChange $dbChange, $activeOnly = false)
+	public function getLatestInstallation(Environment $environment, DbChange $dbChange, $activeOnly = false)
 	{
 		$whereCondition = $this->getInstallationWhereCondition($dbChange, $environment->getId(), $activeOnly);
 
-		return $this->entityManager->getRepository(Installation::class)->findBy($whereCondition);
+		return $this->entityManager->getRepository(Installation::class)->findOneBy(
+			$whereCondition,
+			[
+				'id' => 'DESC',
+			]
+		);
 	}
 
 	/**
@@ -324,24 +339,54 @@ class Manager
 		return $installation;
 	}
 
-	public function installDbChange(Environment $environment, array $connectionConfigurations, DbChange $dbChange)
+	public function installDbChange(Environment $environment, array $connectionConfigurations, DbChange $dbChange, $isForce = false, $isStop = false)
 	{
 		$installation = $this->getInstallation($environment, $dbChange, true);
 		if ($installation == null) {
 			$installation = $this->prepareInstallation($environment, $dbChange);
 		}
 
+		if ($isStop) {
+			return;
+		}
+
 		try {
+			$missingDbChanges = [];
+			$outdatedInstallations = [];
 			foreach ($dbChange->getRequiredDbChanges() as $requiredDbChange) {
 				$reqDbChangeInstallation = $this->getInstalledInstallation($environment, $requiredDbChange->getRequiredDbChange());
 				if ($reqDbChangeInstallation == null) {
-					throw new InstallationException(
-						sprintf(
-							'Required DbChange %s is not installed. Install it first.',
-							$requiredDbChange->getRequiredDbChange()->getCode()
-						)
-					);
+					$latestInstallation = $this->getLatestInstallation($environment, $dbChange);
+					if ($latestInstallation == null) {
+						$missingDbChanges[] = $requiredDbChange->getRequiredDbChange()->getCode();
+					} else {
+						$outdatedInstallations[] = $latestInstallation;
+					}
 				}
+			}
+			if (count($missingDbChanges) > 0) {
+				throw new InstallationException(
+					sprintf(
+						'Following required DbChanges are not installed: %s. Install them first.',
+						implode(', ', $missingDbChanges)
+					)
+				);
+			}
+			if (!$isForce && count($outdatedInstallations) > 0) {
+				throw new InstallationException(
+					sprintf(
+						'Following required DbChanges are outdated (incl. latest version installed): %s. You can skip this check by running install in force mode (-f).',
+						implode(
+							', ',
+							array_map(
+								function (Installation $i) {
+									return sprintf('%1$s (v%2$s)', $i->getDbChange()->getCode(), $i->getDbChange()->getVersionNumber());
+								},
+								$outdatedInstallations
+							)
+						)
+					)
+				);
 			}
 			$fragmentsForInstallation = $this->getInstallationFragmentsByStatus(
 				$installation,
@@ -400,7 +445,7 @@ class Manager
 	private function markFragmentsByIds($fragmentIds, $statusShortcut)
 	{
 		$installationId = null;
-		foreach($fragmentIds as $fragmentId) {
+		foreach ($fragmentIds as $fragmentId) {
 			$installationFragment = $this->getInstallationFragmentById($fragmentId);
 			if ($installationFragment == null) {
 				throw new DbChangeException(sprintf('Installation fragment with given id %s not found.', $fragmentId));
@@ -715,6 +760,16 @@ class Manager
 	/**
 	 * @param string $dbChangeCode
 	 *
+	 * @return null|\Kapcus\DbChanger\Entity\DbChange[]
+	 */
+	public function getDbChangesByCode($dbChangeCode)
+	{
+		return $this->entityManager->getRepository(DbChange::class)->findBy(['code' => $dbChangeCode]);
+	}
+
+	/**
+	 * @param string $dbChangeCode
+	 *
 	 * @return null|\Kapcus\DbChanger\Entity\DbChange
 	 */
 	public function getActiveDbChangeByCodeIfExists($dbChangeCode)
@@ -804,7 +859,8 @@ class Manager
 	 * @return \Kapcus\DbChanger\Entity\InstalledFragment|null
 	 * @throws \Kapcus\DbChanger\Model\Exception\DbChangeException
 	 */
-	public function getInstallationFragment($fragmentInputId) {
+	public function getInstallationFragment($fragmentInputId)
+	{
 		$fragmentId = Util::parseFragmentId($fragmentInputId);
 
 		if ($fragmentId == null) {
@@ -815,6 +871,7 @@ class Manager
 		if ($installationFragment == null) {
 			throw new DbChangeException(sprintf('Installation fragment with given id %s not found.', $fragmentId));
 		}
+
 		return $installationFragment;
 	}
 
@@ -860,6 +917,21 @@ class Manager
 		$output = [];
 		$output['messages'] = [];
 		$installationDetails = [];
+
+		$table = new Table();
+		$table->addColumn(new Column('VERSION', Column::TYPE_STRING, 10));
+		$table->addColumn(new Column('IS_ACTIVE', Column::TYPE_STRING, 10));
+
+		$dbChanges = $this->getDbChangesByCode($dbChangeCode);
+
+		foreach ($dbChanges as $dbChange) {
+			$table->addRow();
+			$table->addField($dbChange->getVersionNumber());
+			$table->addField($dbChange->isActive());
+		}
+
+		$output['dbchanges'] = $table;
+
 		$installations = $this->getInstallationsByDbChangeCode($environment, $dbChangeCode);
 
 		$table = new Table();
@@ -929,8 +1001,6 @@ class Manager
 
 		$installation->setStatus($installationStatus);
 		$this->entityManager->flush();
-
-
 	}
 
 	/**
@@ -939,7 +1009,8 @@ class Manager
 	 * @return \Kapcus\DbChanger\Entity\InstallationLog|null
 	 * @throws \Kapcus\DbChanger\Model\Exception\DbChangeException
 	 */
-	public function getInstallationLog($logInputId) {
+	public function getInstallationLog($logInputId)
+	{
 		$logId = Util::parseLogId($logInputId);
 
 		if ($logId == null) {
@@ -950,6 +1021,7 @@ class Manager
 		if ($installationLog == null) {
 			throw new DbChangeException(sprintf('Installation log with given id %s not found.', $logId));
 		}
+
 		return $installationLog;
 	}
 
@@ -963,10 +1035,11 @@ class Manager
 	{
 		if (Util::parseFragmentId($target) !== null) {
 			$installationFragment = $this->getInstallationFragment($target);
-			return ['CONTENT' => $installationFragment->getContent()];
 
+			return ['CONTENT' => $installationFragment->getContent()];
 		} elseif (Util::parseLogId($target) !== null) {
 			$log = $this->getInstallationLog($target);
+
 			return ['CONTENT' => $log->getContent(), 'RESULT' => $log->getResultMessage()];
 		} else {
 			throw new DbChangeException(sprintf('Unsupported target for display, only fragment id or log id is supported.'));

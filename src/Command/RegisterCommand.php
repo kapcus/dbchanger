@@ -34,8 +34,8 @@ class RegisterCommand extends FormattedOutputCommand
 			->setName('dbchanger:register')
 			->setDescription('Register DbChange and prepare it for further installation')
 			->addArgument('code', InputArgument::REQUIRED, 'DbChange code to be registered.')
-			->addOption('debug', 'd', InputOption::VALUE_NONE, 'y')
-			->addOption('overwrite', 'o', InputOption::VALUE_NONE, 'y');
+			->addOption('debug', 'd', InputOption::VALUE_NONE, '')
+			->addOption('overwrite', 'o', InputOption::VALUE_NONE, '');
 	}
 
 	protected function execute(InputInterface $input, OutputInterface $output)

@@ -81,7 +81,7 @@ class DbChange
 	/**
 	 * @ORM\OneToMany(targetEntity="Requirement", mappedBy="requiredDbChange", cascade={"persist", "remove"})
 	 *
-	 * @var \Kapcus\DbChanger\Entity\DbChange[]
+	 * @var \Kapcus\DbChanger\Entity\Requirement[]
 	 */
 	private $dependentDbChanges = [];
 
@@ -215,7 +215,7 @@ class DbChange
 	}
 
 	/**
-	 * @return \Kapcus\DbChanger\Entity\DbChange[]
+	 * @return \Kapcus\DbChanger\Entity\Requirement[]
 	 */
 	public function getDependentDbChanges()
 	{
@@ -223,9 +223,9 @@ class DbChange
 	}
 
 	/**
-	 * @param \Kapcus\DbChanger\Entity\DbChange $dependentDbChange
+	 * @param \Kapcus\DbChanger\Entity\Requirement $dependentDbChange
 	 */
-	public function addDependentDbChanges(DbChange $dependentDbChange)
+	public function addDependentDbChanges(Requirement $dependentDbChange)
 	{
 		$this->dependentDbChanges[] = $dependentDbChange;
 	}

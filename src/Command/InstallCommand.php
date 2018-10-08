@@ -9,6 +9,7 @@ use Kapcus\DbChanger\Model\IConfigurator;
 use Kapcus\DbChanger\Model\Manager;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 class InstallCommand extends FormattedOutputCommand
@@ -35,7 +36,9 @@ class InstallCommand extends FormattedOutputCommand
 			->setName('dbchanger:install')
 			->setDescription('Install registered DbChange on given environment.')
 			->addArgument('env', InputArgument::REQUIRED, 'Target environment code')
-			->addArgument('code', InputArgument::REQUIRED, 'DbChange code to be installed');
+			->addArgument('code', InputArgument::REQUIRED, 'DbChange code to be installed')
+			->addOption('force', 'f', InputOption::VALUE_NONE, 'Ignores when required DbChange is outdated')
+			->addOption('stop', 's', InputOption::VALUE_NONE, 'Stops immediately before first fragment');
 	}
 
 	protected function execute(InputInterface $input, OutputInterface $output)
@@ -47,7 +50,7 @@ class InstallCommand extends FormattedOutputCommand
 		try {
 			$environment = $this->manager->getEnvironmentByCode($environmentCode);
 			$dbChange = $this->manager->getActiveDbChangeByCode($dbChangeCode);
-			$this->manager->installDbChange($environment, $this->configurator->getEnvironmentConnectionConfigurations($environment->getCode()), $dbChange);
+			$this->manager->installDbChange($environment, $this->configurator->getEnvironmentConnectionConfigurations($environment->getCode()), $dbChange, $input->getOption('force'), $input->getOption('stop'));
 			$output->writeln('OK - DbChange installed successfully.');
 			exit(0);
 		} catch (DbChangeException $e) {

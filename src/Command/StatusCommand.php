@@ -42,9 +42,12 @@ class StatusCommand extends FormattedOutputCommand
 
 		try {
 			$environment = $this->manager->getEnvironmentByCode($environmentCode);
+			$reportData = $this->manager->getDbChangeReport($environment, $dbChangeCode);
+			$output->writeln('');
+			$output->writeln(sprintf('Registered versions for DbChange %s: ', $dbChangeCode));
+			$this->displayTable($output, $reportData['dbchanges']);
 			$output->writeln('');
 			$output->writeln(sprintf('Installations for Environment %s and DbChange %s:', $environment->getCode(), $dbChangeCode));
-			$reportData = $this->manager->getDbChangeReport($environment, $dbChangeCode);
 			$this->displayTable($output, $reportData['installations']);
 			$output->writeln('');
 			$output->writeln('');

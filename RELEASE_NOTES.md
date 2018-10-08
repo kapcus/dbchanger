@@ -1,3 +1,20 @@
+0.5.6 - 2018/10/08
+=================
+* Extended command `install` with stop option that will half installation at the very beginning - useful in case you need to e.g. to skip installation of the first fragment.
+```
+php bin/console.php dbchanger:install LOC 12345 -s
+```
+
+* Extended command `install` with force option that will ignore the constraint which ensure that all required DbChanges are up-to-date (i.e. latest version is installed).
+```
+php bin/console.php dbchanger:install LOC 12345 -f
+```
+
+* Extended output of command `status` - DbChange versions are also listed 
+* Extended error message for command `install` - now, all missing required DbChanges will be listed instead of the first one found
+* Extended error message for command `install` - now, all outdated required DbChanges will be listed if any
+* Fixed update of DbChange reference in Requirements (latest version of each DbChange is always required during installation)
+
 0.5.5 - 2018/09/07
 =================
 * Fixed the wrong order of loaded files that could occur on some platforms.
