@@ -1,3 +1,7 @@
+0.5.7 - 2018/10/08
+=================
+* Forgotten documentation update :) 
+
 0.5.6 - 2018/10/08
 =================
 * Extended command `install` with stop option that will half installation at the very beginning - useful in case you need to e.g. to skip installation of the first fragment.
