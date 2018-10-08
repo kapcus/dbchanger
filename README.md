@@ -135,12 +135,22 @@ Source dbChange content is searched in `inputDirectory` specified in [config.neo
 4] Install dbChange (e.g. 12345) with
 ```
 php bin/console.php dbchanger:install DEV 12345
+
+php bin/console.php dbchanger:install DEV 12345 -s
+
+php bin/console.php dbchanger:install DEV 12345 -f
 ``` 
 
 This command will establish the connection with environment under specified user.
 Once connected, it will execute sql queries for selected dbChange, one by one.
-Once each whole dbChange installation fragment is successfully installed, proper
-status is set.
+Installation is taking fragments one by one and tries to install them confirming this
+operation with appropriate installation fragment status.
+Once whole dbChange installation is successfully installed, proper installation status is set.
+
+In case `-s` is specified (stop), installation will stop at the very beginning (useful in case you need to skip the first fragment)
+
+In case `-f` is specified (force), the constraint which ensure that all required DbChanges are up-to-date 
+(i.e. latest version is installed) will be ignored
 
 All executed queries are logged into `logDirectory` specified in [config.neon](config/config.neon) 
 
@@ -153,6 +163,8 @@ DbChanger can display status of installations and all installation fragments are
 ```
 php bin/console.php dbchanger:status DEV 12345
 ```
+
+Also all registered version of particular DbChange are listed.
 
 ========================================
 
