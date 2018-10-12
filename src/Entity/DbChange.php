@@ -59,6 +59,7 @@ class DbChange
 
 	/**
 	 * @ORM\OneToMany(targetEntity="Fragment", mappedBy="dbChange", cascade={"persist", "remove"})
+	 * @ORM\OrderBy({"id" = "ASC"})
 	 *
 	 * @var \Kapcus\DbChanger\Entity\Fragment[]
 	 */

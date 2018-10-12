@@ -1,3 +1,7 @@
+0.5.8 - 2018/10/12
+=================
+* Fixed the wrong order of loaded fragments into installation that could occur on some platforms.
+
 0.5.7 - 2018/10/08
 =================
 * Forgotten documentation update :) 
