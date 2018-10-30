@@ -1,22 +1,13 @@
 parameters:
 	dbchanger:
-		database:
-			driver: oci8
-			host: localhost
-			user: DBCHANGER_USER
-			password: ''
-			servicename: DBCHANGER_SERVICE
-			dbname: DBCHANGER_USER
-			port: 1521
 		inputDirectory: 'misc\sampledata\'
 		outputDirectory: 'output'
 		logDirectory: 'log'
 		filePrefix: ''
 		datamodel: []
 
-
 services:
-	- Doctrine\ORM\EntityManager::create(%dbchanger.database%,  Doctrine\ORM\Tools\Setup::createAnnotationMetadataConfiguration(["/src/Entity"], true, null, null, false))
+	- Doctrine\ORM\EntityManager::create(%database%,  Doctrine\ORM\Tools\Setup::createAnnotationMetadataConfiguration(["/src/Entity"], true, null, null, false))
 	- Kapcus\DbChanger\Model\Manager(%dbchanger.outputDirectory%)
 	- Kapcus\DbChanger\Model\Loader(%dbchanger.inputDirectory%, %dbchanger.filePrefix%)
 	- Kapcus\DbChanger\Model\Generator(%dbchanger.outputDirectory%)

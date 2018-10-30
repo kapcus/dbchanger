@@ -101,13 +101,13 @@ Usage
 
 ========================================
 
-2] Initialize the environment (e.g. DEV) with
+2] Initialize the DbChange with
 ``` 
-php bin/console.php dbchanger:init DEV
+php bin/console.php dbchanger:init
 ```
 
 This command will load environment data specified in configuration file into internal
-DbChanger database. Now, environment is ready for dbChange deployments.
+DbChanger database. Now, DbChanger is aligned with your configuration and ready to serve.
 
 ========================================
  

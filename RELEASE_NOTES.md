@@ -1,3 +1,11 @@
+0.5.9 - 2018/10/30
+=================
+* Fixed sql replacement of the query part where empty group placeholder is present 
+* Fixed outdated installation check
+* Fixed documentation (init command)
+* Added example config file
+* Added empty group dbchange sample
+
 0.5.8 - 2018/10/12
 =================
 * Fixed the wrong order of loaded fragments into installation that could occur on some platforms.

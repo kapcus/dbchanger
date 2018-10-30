@@ -1,14 +1,14 @@
 parameters:
-	# database connection data for dbchanger running instance, mandatory (individual database parameters by driver spec)
 	database:
 		driver: oci8
 		host: localhost
-		user: DBCHANGERUSER
-		password: ''
-		servicename: DBCHANGERDBINSTANCE
-		dbname: DBCHANGESCHEMA
+		user: ABC_GLOBAL
+		password: ABC123ABC
+		servicename: ABC
+		dbname: ABC
 		port: 1521
 	dbchanger:
+		# database connection data for dbchanger running instance, mandatory (individual database parameters by driver spec)
 
 		# folder where dbchange files are located
 		inputDirectory: 'misc\sampledata\'
@@ -26,7 +26,7 @@ parameters:
 		datamodel:
 
 			# list of all defined groups, mandatory and must be filled
-			groups: [central, region, home, operations]
+			groups: [central, region, home, operations, all]
 
 			# which groups should be treated as manual ones (sql content in such fragments is not executed during installation and require manual interaction), optional
 			manualGroups: [operations]
@@ -35,44 +35,37 @@ parameters:
 			environments:
 
 				# each environment must have 3-letter code, mandatory
-				ENV:
+				LOC:
 
 					# environment name, mandatory
-					name: XXXXXXX
+					name: Local Development
 
 					# environment description, optional
-					description: XXXXXXX Environment
+					description: Local Development Environment
 
 					# hostname where database is running, mandatory
-					hostname: ''
+					hostname: %database.host%
 
 					# database name (instance name, service name), mandatory
-					dbname: XXXDB
+					dbname: %database.dbname%
 
 					# database port, mandatory
 					port: 1521
 
-					# OPTION 1 = define users
-					# database users and their passwords, see this example, (mandatory in case of option 1, omit in case of option 2)
-					users:
-						'MAINUSER' : ''
-						'SLAVEUSER1' : ''
-						'SLAVEUSER2' : ''
-
 					# or OPTION 2 = define usernames and passwords (order of values is important, length of arrays must equal)
 					# database user names (mandatory in case of option 2, omit in case of option 1)
-					usernames: ['MAINUSER', 'SLAVEUSER1', 'SLAVEUSER2']
+					usernames: ['%database.dbname%', '%database.dbname%au', '%database.dbname%us']
 					# database user passwords (mandatory in case of option 2, omit in case of option 1)
-					passwords: ['', '', '']
+					passwords: ['%database.password%', '%database.password%au', '%database.password%us']
 
 					# database groups with assigned users, see this example, mandatory
 					groups:
-						all: [MAINUSER, SLAVEUSER1, SLAVEUSER2]
-						central: [MAINUSER]
-						region: [SLAVEUSER1, SLAVEUSER2]
-						empty: []
+						all: ['%database.dbname%', '%database.dbname%au', '%database.dbname%us']
+						central: ['%database.dbname%']
+						region: ['%database.dbname%au', '%database.dbname%us']
 
 					# placeholders used in dbchange fragment sql content, see this example, optional
 					placeholders:
-						'<ruser>': READERUSER
-						'<systemuser>': SYSTEMUSER
+						'<central>': %database.dbname%
+						'<user>': ABCUSER
+						'<systemuser>': ABCSYS

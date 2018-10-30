@@ -167,7 +167,6 @@ class Manager
 
 			$existingEnvironment = $this->getEnvironmentByCodeIfExists($environment->getCode());
 			if ($existingEnvironment == null) {
-				//Debug::dump($environment);
 				$this->entityManager->persist($environment);
 			} else {
 				if (!$this->isEqualEnvironments($environment, $existingEnvironment)) {
@@ -246,20 +245,37 @@ class Manager
 	 * @param \Kapcus\DbChanger\Entity\Environment $environment
 	 * @param \Kapcus\DbChanger\Entity\DbChange $dbChange
 	 *
-	 * @param bool $activeOnly
-	 *
-	 * @return \Kapcus\DbChanger\Entity\Installation
+	 * @return \Kapcus\DbChanger\Entity\Installation|null
 	 */
-	public function getLatestInstallation(Environment $environment, DbChange $dbChange, $activeOnly = false)
+	public function getOutdatedInstallation(Environment $environment, DbChange $dbChange)
 	{
-		$whereCondition = $this->getInstallationWhereCondition($dbChange, $environment->getId(), $activeOnly);
 
-		return $this->entityManager->getRepository(Installation::class)->findOneBy(
-			$whereCondition,
-			[
-				'id' => 'DESC',
-			]
+		$query = $this->entityManager->createQuery(
+			'select 
+					i 
+				  from 
+					Kapcus\DbChanger\Entity\Installation i, 
+					Kapcus\DbChanger\Entity\DbChange d,
+					Kapcus\DbChanger\Entity\Environment e 
+				  WHERE
+					i.environment = e AND
+					i.dbChange = d AND
+					e.id = ?1 AND 
+					d.code = ?2 AND
+					d.isActive = 0 AND
+					i.status = ?3
+				  ORDER BY 
+				    d.id ASC, i.id ASC'
 		);
+		$query->setParameter(1, $environment->getId());
+		$query->setParameter(2, $dbChange->getCode());
+		$query->setParameter(3, Installation::STATUS_INSTALLED);
+
+		$result = $query->setMaxResults(1)->setFirstResult(1)->getResult();
+		if (empty($result)) {
+			return null;
+		}
+		return $result[0];
 	}
 
 	/**
@@ -313,18 +329,19 @@ class Manager
 	}
 
 	/**
+	 * @param \Kapcus\DbChanger\Entity\Group[] $groups
 	 * @param \Kapcus\DbChanger\Entity\Environment $environment
 	 * @param \Kapcus\DbChanger\Entity\DbChange $dbChange
 	 *
 	 * @return \Kapcus\DbChanger\Entity\Installation
 	 * @throws \Doctrine\ORM\OptimisticLockException
 	 */
-	public function prepareInstallation(Environment $environment, DbChange $dbChange)
+	public function prepareInstallation(array $groups, Environment $environment, DbChange $dbChange)
 	{
 		$installation = $this->createNewInstallation($environment, $dbChange, self::DEFAULT_USER);
 		foreach ($dbChange->getFragments() as $fragment) {
 			foreach ($environment->getUserGroupsByGroup($fragment->getGroup()) as $userGroup) {
-				$content = $this->generator->getFragmentContent($environment, $fragment, $userGroup);
+				$content = $this->generator->getFragmentContent($groups, $environment, $fragment, $userGroup);
 				$installedFragment = new InstalledFragment();
 				$installedFragment->setInstallation($installation);
 				$installedFragment->setFragment($fragment);
@@ -339,11 +356,24 @@ class Manager
 		return $installation;
 	}
 
-	public function installDbChange(Environment $environment, array $connectionConfigurations, DbChange $dbChange, $isForce = false, $isStop = false)
+	/**
+	 * @param \Kapcus\DbChanger\Entity\Group[] $groups
+	 * @param \Kapcus\DbChanger\Entity\Environment $environment
+	 * @param array $connectionConfigurations
+	 * @param \Kapcus\DbChanger\Entity\DbChange $dbChange
+	 * @param bool $isForce
+	 * @param bool $isStop
+	 *
+	 * @throws \Doctrine\ORM\OptimisticLockException
+	 * @throws \Kapcus\DbChanger\Model\Exception\ConnectionException
+	 * @throws \Kapcus\DbChanger\Model\Exception\ExecutionException
+	 * @throws \Kapcus\DbChanger\Model\Exception\InstallationException
+	 */
+	public function installDbChange(array $groups, Environment $environment, array $connectionConfigurations, DbChange $dbChange, $isForce = false, $isStop = false)
 	{
 		$installation = $this->getInstallation($environment, $dbChange, true);
 		if ($installation == null) {
-			$installation = $this->prepareInstallation($environment, $dbChange);
+			$installation = $this->prepareInstallation($groups, $environment, $dbChange);
 		}
 
 		if ($isStop) {
@@ -356,11 +386,11 @@ class Manager
 			foreach ($dbChange->getRequiredDbChanges() as $requiredDbChange) {
 				$reqDbChangeInstallation = $this->getInstalledInstallation($environment, $requiredDbChange->getRequiredDbChange());
 				if ($reqDbChangeInstallation == null) {
-					$latestInstallation = $this->getLatestInstallation($environment, $dbChange);
-					if ($latestInstallation == null) {
-						$missingDbChanges[] = $requiredDbChange->getRequiredDbChange()->getCode();
+					$outdatedInstallation = $this->getOutdatedInstallation($environment, $requiredDbChange->getRequiredDbChange());
+					if (isset($outdatedInstallation)) {
+						$outdatedInstallations[] = $outdatedInstallation;
 					} else {
-						$outdatedInstallations[] = $latestInstallation;
+						$missingDbChanges[] = $requiredDbChange->getRequiredDbChange()->getCode();
 					}
 				}
 			}

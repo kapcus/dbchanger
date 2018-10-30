@@ -36,13 +36,14 @@ interface IGenerator
 	public function generateFragmentIntoFile(Environment $environment, Fragment $fragment);
 
 	/**
+	 * @param \Kapcus\DbChanger\Entity\Group[] $groups
 	 * @param \Kapcus\DbChanger\Entity\Environment $environment
 	 * @param \Kapcus\DbChanger\Entity\Fragment $dbChangeFragment
 	 * @param \Kapcus\DbChanger\Entity\UserGroup $userGroup
 	 *
 	 * @return string fragment content
 	 */
-	public function getFragmentContent(Environment $environment, Fragment $dbChangeFragment, UserGroup $userGroup);
+	public function getFragmentContent(array $groups, Environment $environment, Fragment $dbChangeFragment, UserGroup $userGroup);
 
 	/**
 	 * @return string

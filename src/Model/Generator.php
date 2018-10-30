@@ -160,18 +160,20 @@ class Generator implements IGenerator
 	}
 
 	/**
+	 * @param \Kapcus\DbChanger\Entity\Group[] $groups
 	 * @param \Kapcus\DbChanger\Entity\Environment $environment
 	 * @param \Kapcus\DbChanger\Entity\Fragment $dbChangeFragment
 	 * @param \Kapcus\DbChanger\Entity\UserGroup $userGroup
 	 *
 	 * @return string
 	 */
-	public function getFragmentContent(Environment $environment, Fragment $dbChangeFragment, UserGroup $userGroup)
+	public function getFragmentContent(array $groups, Environment $environment, Fragment $dbChangeFragment, UserGroup $userGroup)
 	{
-		return $this->doGenerateFragmentContent($environment, $dbChangeFragment, $userGroup, false);
+		return $this->doGenerateFragmentContent($groups, $environment, $dbChangeFragment, $userGroup, false);
 	}
 
 	/**
+	 * @param \Kapcus\DbChanger\Entity\Group[] $groups
 	 * @param \Kapcus\DbChanger\Entity\Environment $environment
 	 * @param \Kapcus\DbChanger\Entity\Fragment $dbChangeFragment
 	 * @param \Kapcus\DbChanger\Entity\UserGroup $userGroup
@@ -179,7 +181,7 @@ class Generator implements IGenerator
 	 *
 	 * @return string
 	 */
-	public function doGenerateFragmentContent(Environment $environment, Fragment $dbChangeFragment, UserGroup $userGroup, $loadFromFile = false)
+	public function doGenerateFragmentContent(array $groups, Environment $environment, Fragment $dbChangeFragment, UserGroup $userGroup, $loadFromFile = false)
 	{
 
 		$contentTemplate = $loadFromFile ? $dbChangeFragment->getTemplateContentFromFile() : $dbChangeFragment->getTemplateContent();
@@ -201,11 +203,12 @@ class Generator implements IGenerator
 		$statements = $this->parser->parseContent($contentTemplate);
 
 		foreach ($statements as $statement) {
-			$newChunks = $this->replaceGroupPlaceholder($environment, $statement->getContent());
+			$newChunks = $this->replaceGroupPlaceholder($groups, $environment, $statement->getContent());
 			foreach ($newChunks as $newChunk) {
 				$chunks[] = sprintf('%s%s', $newChunk, $statement->getDelimiter());
 			}
 		}
+
 		$chunks[] = 'COMMIT' . $this->parser->getDelimiter();
 		$chunks[] = '';
 
@@ -231,33 +234,40 @@ class Generator implements IGenerator
 	}
 
 	/**
+	 * @param \Kapcus\DbChanger\Entity\Group[] $groups
 	 * @param \Kapcus\DbChanger\Entity\Environment $environment
 	 * @param string $statementContent
 	 *
 	 * @return string[]
 	 */
-	private function replaceGroupPlaceholder(Environment $environment, $statementContent)
+	private function replaceGroupPlaceholder(array $groups, Environment $environment, $statementContent)
 	{
 		if (strpos($statementContent, self::PLACEHOLDER_START) !== false) {
-			return $this->replaceGroupPlaceholderInSubstring($environment, $statementContent);
+			return $this->replaceGroupPlaceholderInSubstring($groups, $environment, $statementContent);
 		} else {
-			return $this->replaceGroupPlaceholderGlobally($environment, $statementContent);
+			return $this->replaceGroupPlaceholderGlobally($groups, $environment, $statementContent);
 		}
 	}
 
 	/**
+	 * @param \Kapcus\DbChanger\Entity\Group[] $groups
 	 * @param \Kapcus\DbChanger\Entity\Environment $environment
 	 * @param $statementContent
 	 *
 	 * @return string[]
 	 */
-	private function replaceGroupPlaceholderGlobally(Environment $environment, $statementContent) {
+	private function replaceGroupPlaceholderGlobally(array $groups, Environment $environment, $statementContent) {
 		$newStatements = [];
-		foreach ($environment->getGroupNames() as $groupName) {
-			if (strpos($statementContent, $this->getGroupPlaceholder($groupName)) !== false) {
-				foreach (Util::getUserGroupUsersByGroupName($environment->getUserGroups(), $groupName) as $user) {
+		foreach ($groups as $group) {
+			if (strpos($statementContent, $this->getGroupPlaceholder($group->getName())) !== false) {
+				$users = Util::getUserGroupUsersByGroupName($environment->getUserGroups(), $group->getName());
+				// empty group -> no sql is produced where group placeholder is present
+				if (empty($users)) {
+					return [];
+				}
+				foreach ($users as $user) {
 					$newStatements[] = str_replace(
-						$this->getGroupPlaceholder($groupName),
+						$this->getGroupPlaceholder($group->getName()),
 						$user->getName(),
 						$statementContent
 					);
@@ -269,12 +279,13 @@ class Generator implements IGenerator
 	}
 
 	/**
+	 * @param \Kapcus\DbChanger\Entity\Group[] $groups
 	 * @param \Kapcus\DbChanger\Entity\Environment $environment
 	 * @param $statementContent
 	 *
 	 * @return string[]
 	 */
-	private function replaceGroupPlaceholderInSubstring(Environment $environment, $statementContent) {
+	private function replaceGroupPlaceholderInSubstring(array $groups, Environment $environment, $statementContent) {
 		$startPlaceholderIndex = strpos($statementContent, self::PLACEHOLDER_START);
 		$newStatements = [];
 		$subStringLength = null;
@@ -285,11 +296,16 @@ class Generator implements IGenerator
 			$subStringLength = $endPlaceholderIndex - $startIndex;
 		}
 
-		foreach ($environment->getGroupNames() as $groupName) {
-			if (strpos($statementContent, $this->getGroupPlaceholder($groupName)) !== false) {
-				foreach (Util::getUserGroupUsersByGroupName($environment->getUserGroups(), $groupName) as $user) {
+		foreach ($groups as $group) {
+			if (strpos($statementContent, $this->getGroupPlaceholder($group->getName())) !== false) {
+				$users = Util::getUserGroupUsersByGroupName($environment->getUserGroups(), $group->getName());
+				// empty group -> no sql is produced where group placeholder is present
+				if (empty($users)) {
+					return [];
+				}
+				foreach ($users as $user) {
 					$newStatements[] = str_replace(
-						$this->getGroupPlaceholder($groupName),
+						$this->getGroupPlaceholder($group->getName()),
 						$user->getName(),
 						substr($statementContent, $startIndex, $subStringLength)
 					);

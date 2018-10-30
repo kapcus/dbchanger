@@ -50,7 +50,7 @@ class InstallCommand extends FormattedOutputCommand
 		try {
 			$environment = $this->manager->getEnvironmentByCode($environmentCode);
 			$dbChange = $this->manager->getActiveDbChangeByCode($dbChangeCode);
-			$this->manager->installDbChange($environment, $this->configurator->getEnvironmentConnectionConfigurations($environment->getCode()), $dbChange, $input->getOption('force'), $input->getOption('stop'));
+			$this->manager->installDbChange($this->configurator->getGroups(), $environment, $this->configurator->getEnvironmentConnectionConfigurations($environment->getCode()), $dbChange, $input->getOption('force'), $input->getOption('stop'));
 			$output->writeln('OK - DbChange installed successfully.');
 			exit(0);
 		} catch (DbChangeException $e) {
